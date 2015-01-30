@@ -10,6 +10,13 @@ repositories {
   maven { url "http://oss.sonatype.org/content/repositories/snapshots" }
 }
 
+
+idea {
+	module {
+		downloadSources = true
+	}
+}
+
 compileJava {
 	sourceCompatibility = 1.7
 	targetCompatibility = 1.7
