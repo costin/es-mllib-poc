@@ -1,0 +1,44 @@
+description = 'Elasticsearch and Spark POC'
+version = '0.0.1.wip-SNAPSHOT'
+
+apply plugin: 'java'
+apply plugin: 'eclipse'
+apply plugin: 'idea'
+
+repositories {
+  mavenCentral()
+  maven { url "http://oss.sonatype.org/content/repositories/snapshots" }
+}
+
+compileJava {
+	sourceCompatibility = 1.7
+	targetCompatibility = 1.7
+}
+
+ext.esVersion="1.4.2"
+ext.ehVersion="2.1.0.BUILD-SNAPSHOT"
+ext.scalaMajorVersion="2.10"
+ext.scalaVersion="2.10.4"
+ext.sparkVersion="1.2.0"
+ext.log4jVersion="1.2.17"
+ext.groovyVersion="2.3.2"
+ext.junitVersion="4.11"
+ext.hamcrestVersion="1.3"
+
+dependencies {
+	compile("org.elasticsearch:elasticsearch:$esVersion")
+	compile("org.elasticsearch:elasticsearch-spark_$scalaMajorVersion:$ehVersion")
+	compile("org.apache.spark:spark-core_$scalaMajorVersion:$sparkVersion") {
+		exclude group: 'javax.servlet'
+	}
+	compile("org.apache.spark:spark-sql_$scalaMajorVersion:$sparkVersion")
+	compile("org.scala-lang:scala-library:$scalaVersion")
+	
+	testCompile "junit:junit:$junitVersion"
+	testCompile "org.hamcrest:hamcrest-all:$hamcrestVersion"
+	testRuntime "org.slf4j:slf4j-log4j12:1.7.6"
+	testRuntime "log4j:log4j:$log4jVersion"
+	testRuntime "org.codehaus.groovy:groovy-all:$groovyVersion"
+}
+
+defaultTasks 'build'
