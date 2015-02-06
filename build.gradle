@@ -2,6 +2,7 @@ description = 'Elasticsearch and Spark POC'
 version = '0.0.1.wip-SNAPSHOT'
 
 apply plugin: 'java'
+apply plugin: 'scala'
 apply plugin: 'eclipse'
 apply plugin: 'idea'
 

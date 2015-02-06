@@ -32,7 +32,7 @@ python index_movie_reviews.py
 After that all should be setup to run the test `BasicEsSparkTest.movieReviews()`.
  
 
-# Backgound
+# Background
 
 Word2vec computes synonyms like so:
 
