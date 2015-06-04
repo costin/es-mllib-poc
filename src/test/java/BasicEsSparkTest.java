@@ -17,18 +17,12 @@
  * under the License.
  */
 
-import java.io.*;
-import java.util.Map;
-import java.util.Properties;
-import java.util.concurrent.TimeUnit;
-
+import com.google.common.collect.ImmutableList;
+import com.google.common.collect.ImmutableMap;
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
-import org.apache.spark.api.java.function.Function;
-import org.apache.spark.mllib.feature.Word2Vec;
-import org.apache.spark.mllib.feature.Word2VecModel;
 import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -36,10 +30,10 @@ import org.junit.FixMethodOrder;
 import org.junit.Test;
 import org.junit.runners.MethodSorters;
 
-import com.google.common.collect.ImmutableList;
-import com.google.common.collect.ImmutableMap;
-import scala.Tuple2;
-import scala.collection.Iterator;
+import java.io.Serializable;
+import java.util.Map;
+import java.util.Properties;
+import java.util.concurrent.TimeUnit;
 
 import static org.elasticsearch.hadoop.cfg.ConfigurationOptions.ES_RESOURCE;
 import static scala.collection.JavaConversions.propertiesAsScalaMap;
@@ -71,75 +65,6 @@ public class BasicEsSparkTest implements Serializable {
             Thread.sleep(TimeUnit.SECONDS.toMillis(2));
         }
     }
-
-    /**
-     * Compute cooccurrence as desribed here:
-     * 1. https://spark.apache.org/docs/1.2.0/api/java/org/apache/spark/mllib/feature/Word2Vec.html
-     * <p/>
-     * Could maybe also use:
-     * http://spark.apache.org/docs/1.2.0/mllib-collaborative-filtering.html
-     * or even:
-     * https://databricks.com/blog/2014/10/20/efficient-similarity-algorithm-now-in-spark-twitter.html
-     */
-    @Test
-    public void movieReviews() throws Exception {
-
-        String target = "movie-reviews/review";
-        JavaPairRDD<String, Map<String, Object>> esRDD = JavaEsSpark.esRDD(sc, target,
-                "{\"analyzed_text\": [" +
-                        "{\"field\":\"text\", \"idf_threshold\": 0.1, \"df_threshold\": 5}" +
-                        "],\"fields\": []}");
-
-        // get the analyzed text from the results
-        JavaRDD<Iterable<String>> corpus = esRDD.map(
-                new Function<Tuple2<String, Map<String, Object>>, Iterable<String>>() {
-                    public Iterable<String> call(Tuple2<String, Map<String, Object>> s) {
-                        return (Iterable<String>) s._2.get("text");
-                    }
-                }
-        );
-
-        // print some lines so we know how the data looks like
-        System.out.println(esRDD.take(2));
-        System.out.println(corpus.take(2));
-        // learn the word vectors
-        Word2Vec vectorModel = new Word2Vec();
-        Word2VecModel model = vectorModel.fit(corpus);
-        // find an example synonym and print it
-        Tuple2<String, Object>[] synonyms = model.findSynonyms("action", 10);
-        for (Tuple2<String, Object> synonym : synonyms) {
-            System.out.println(synonym._1().toString());
-            System.out.println(synonym._2().toString());
-        }
-
-        // now write synonyms for each word to a file in the format
-        // word => word, synonym1, synonym2, ...
-        Iterator<Tuple2<String, float[]>> words = model.getVectors().seq().iterator();
-        FileOutputStream fos = new FileOutputStream("synonyms.txt");
-        try (OutputStream out = new BufferedOutputStream(
-                fos)) {
-            while (words.hasNext()) {
-                Tuple2<String, float[]> word = words.next();
-                Tuple2<String, Object>[] similarWords = model.findSynonyms(word._1, 10);
-                String synonymLineStart =  word._1 + "=>" + word._1 + ",";
-                out.write(synonymLineStart.getBytes());
-                int numSimilarWords = 0;
-                for (Tuple2<String, Object> similarWord : similarWords) {
-                    out.write(similarWord._1.getBytes());
-                    if (numSimilarWords < similarWords.length - 1) {
-                        out.write(",".getBytes());
-                    }
-                    numSimilarWords++;
-                }
-                out.write("\n".getBytes());
-            }
-            out.flush();
-            out.close();
-        } catch (IOException x) {
-            System.err.println(x);
-        }
-    }
-
 
     @Test
     public void testBasicExample() throws Exception {
