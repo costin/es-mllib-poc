@@ -90,7 +90,7 @@ public class SynonymsWithWord2Vec implements Serializable {
         JavaRDD<Iterable<String>> corpus = esRDD.map(
                 new Function<Tuple2<String, Map<String, Object>>, Iterable<String>>() {
                     public Iterable<String> call(Tuple2<String, Map<String, Object>> s) {
-                        return (Iterable<String>) s._2.get("text.analyzed");
+                        return (Iterable<String>) s._2().get("text.analyzed");
                     }
                 }
         );
@@ -116,12 +116,12 @@ public class SynonymsWithWord2Vec implements Serializable {
                 fos)) {
             while (words.hasNext()) {
                 Tuple2<String, float[]> word = words.next();
-                Tuple2<String, Object>[] similarWords = model.findSynonyms(word._1, 10);
-                String synonymLineStart =  word._1 + "=>" + word._1 + ",";
+                Tuple2<String, Object>[] similarWords = model.findSynonyms(word._1(), 10);
+                String synonymLineStart =  word._1() + "=>" + word._1() + ",";
                 out.write(synonymLineStart.getBytes());
                 int numSimilarWords = 0;
                 for (Tuple2<String, Object> similarWord : similarWords) {
-                    out.write(similarWord._1.getBytes());
+                    out.write(similarWord._1().getBytes());
                     if (numSimilarWords < similarWords.length - 1) {
                         out.write(",".getBytes());
                     }

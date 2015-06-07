@@ -80,16 +80,32 @@ public class NaiveBayesWithScriptFields implements Serializable {
 
     /**
      * This needs token-plugin installed: https://github.com/brwe/es-token-plugin
+     * <p/>
+     * Trains a naive bayes classifier and stores the resulting model as a template script back to es.
+     * <p/>
+     * Call the model with:
+     * curl -XGET "http://localhost:9200/movie-reviews/_search/template" -d'
+     * {
+     * "id": "model_script",
+     * "params" : {
+     * "field" : "text"
+     * }
+     * }'
+     * <p/>
+     * Get the model with
+     * curl -XGET "http://localhost:9200/_search/template/model_script"
      */
     @Test
     public void movieReviewsNaiveBayes() throws Exception {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
-        StringBuilder featureTerms = getSignificantTermsAsStringList(200);
+        String[] featureTerms = getSignificantTermsAsStringList(200);
+        // get for each document a list of tfs for the featureTerms
         String target = "movie-reviews/review";
         JavaPairRDD<String, Map<String, Object>> esRDD = JavaEsSpark.esRDD(sc, target,
                 restRequestBody(featureTerms));
 
+        // convert to labeled point (label + vector)
         // get the analyzed text from the results
         JavaRDD<LabeledPoint> corpus = esRDD.map(
                 new Function<Tuple2<String, Map<String, Object>>, LabeledPoint>() {
@@ -101,7 +117,7 @@ public class NaiveBayesWithScriptFields implements Serializable {
 
                     private double[] getFeatures(Tuple2<String, Map<String, Object>> dataPoint) {
                         // convert ArrayList to double[]
-                        ArrayList features = (ArrayList) (dataPoint._2.get("vector"));
+                        ArrayList features = (ArrayList) (dataPoint._2().get("vector"));
                         // field values are an array in an array
                         features = (ArrayList) features.get(0);
                         double[] doubleFeatures = new double[features.size()];
@@ -113,7 +129,7 @@ public class NaiveBayesWithScriptFields implements Serializable {
 
                     private Double getLabel(Tuple2<String, Map<String, Object>> dataPoint) {
                         // convert string to double label
-                        String label = (String) ((ArrayList) dataPoint._2.get("label")).get(0);
+                        String label = (String) ((ArrayList) dataPoint._2().get("label")).get(0);
                         return label.equals("positive") ? 1.0 : 0;
                     }
                 }
@@ -140,18 +156,28 @@ public class NaiveBayesWithScriptFields implements Serializable {
             }
         }).count() / test.count();
         System.out.println("accuracy is " + accuracy);
+        System.out.println("labels is " + Arrays.toString(model.labels()));
+        System.out.println("thetas is " + Arrays.deepToString(model.theta()));
+        System.out.println("pi is " + Arrays.toString(model.pi()));
+
+        // index tempalte search request that can be used for classification of new data
+        Node node = NodeBuilder.nodeBuilder().client(true).node();
+        Client client = node.client();
+        System.out.println(searchTemplate(model, featureTerms));
+        client.preparePutIndexedScript("mustache", "model_script", searchTemplate(model, featureTerms)).get();
+
     }
 
-    private String restRequestBody(StringBuilder featureTerms) {
+    // request body for vector representation of documents
+    private String restRequestBody(String[] featureTerms) {
         return "{\n" +
                 "  \"script_fields\": {\n" +
                 "    \"vector\": {\n" +
                 "      \"script\": \"vector\",\n" +
                 "      \"lang\": \"native\",\n" +
                 "      \"params\": {\n" +
-                "        \"features\": [\n" +
-                featureTerms +
-                "        ],\n" +
+                "        \"features\": " + Arrays.toString(featureTerms) +
+                "        ,\n" +
                 "        \"field\": \"text\"\n" +
                 "      }\n" +
                 "    }\n" +
@@ -162,28 +188,60 @@ public class NaiveBayesWithScriptFields implements Serializable {
                 "}";
     }
 
-    private StringBuilder getSignificantTermsAsStringList(int numTerms) {
-        StringBuilder featureTerms = new StringBuilder();
+    //
+    private String[] getSignificantTermsAsStringList(int numTerms) {
         Node node = NodeBuilder.nodeBuilder().client(true).node();
         Client client = node.client();
         SearchResponse searchResponse = client.prepareSearch("movie-reviews").addAggregation(terms("classes").field("label").subAggregation(significantTerms("features").field("text").size(numTerms / 2))).get();
         List<Terms.Bucket> labelBucket = ((Terms) searchResponse.getAggregations().asMap().get("classes")).getBuckets();
         Collection<SignificantTerms.Bucket> significantTerms = ((SignificantStringTerms) (labelBucket.get(0).getAggregations().asMap().get("features"))).getBuckets();
-        addFeaturesToString(significantTerms, featureTerms);
+        List<String> features = new ArrayList<>();
+        addFeatures(significantTerms, features);
         significantTerms = ((SignificantStringTerms) (labelBucket.get(1).getAggregations().asMap().get("features"))).getBuckets();
-        addFeaturesToString(significantTerms, featureTerms);
-        featureTerms.replace(featureTerms.length() - 1, featureTerms.length(), " ");
-        System.out.println("features: " + featureTerms);
-        return featureTerms;
+        addFeatures(significantTerms, features);
+        return features.toArray(new String[features.size()]);
     }
 
-    private void addFeaturesToString(Collection<SignificantTerms.Bucket> significantTerms, StringBuilder featureTerms) {
+    private void addFeatures(Collection<SignificantTerms.Bucket> significantTerms, List<String> featureArray) {
         for (SignificantTerms.Bucket bucket : significantTerms) {
-            featureTerms.append("\"");
-            featureTerms.append(bucket.getKey());
-            featureTerms.append("\"");
-            featureTerms.append(",");
+            featureArray.add("\"" + bucket.getKey() + "\"");
 
         }
+    }
+
+    private String searchTemplate(NaiveBayesModel model, String[] features) {
+        return "{\"template\": {\n" +
+                "    \"script_fields\": {\n" +
+                "      \"predicted_label\": {\n" +
+                "        \"params\": {\n" +
+                "          \"features\": " + Arrays.deepToString(features) + ",\n" +
+                "          \"field\": \"{{field}}\",\n" +
+                "          \"thetas\": " + Arrays.deepToString(model.theta()) + ",\n" +
+                "          \"labels\": " + Arrays.toString(model.labels()) + ",\n" +
+                "          \"pi\": " + Arrays.toString(model.pi()) + "\n" +
+                "        },\n" +
+                "        \"script\": \"nb_model\",\n" +
+                "        \"lang\": \"native\"\n" +
+                "      }\n" +
+                "    },\n" +
+                "    \"aggregations\": {\n" +
+                "      \"terms\": {\n" +
+                "        \"terms\": {\n" +
+                "          \"params\": {\n" +
+                "            \"features\": " + Arrays.deepToString(features) + ",\n" +
+                "            \"field\": \"{{field}}\",\n" +
+                "            \"thetas\": " + Arrays.deepToString(model.theta()) + ",\n" +
+                "            \"labels\": " + Arrays.toString(model.labels()) + ",\n" +
+                "            \"pi\": " + Arrays.toString(model.pi()) + "\n" +
+                "          },\n" +
+                "          \"script\": \"nb_model\",\n" +
+                "          \"lang\": \"native\"\n" +
+                "        }\n" +
+                "      }\n" +
+                "    },\n" +
+                "  \"fields\": [\n" +
+                "    \"label\", \"_source\"\n" +
+                "  ]\n" +
+                "  }}";
     }
 }
