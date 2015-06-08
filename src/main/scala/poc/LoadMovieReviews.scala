@@ -30,8 +30,8 @@ object LoadMovieReviews {
     mapping.field("term_vector", "yes")
     mapping.startObject("fields")
     mapping.startObject("analyzed")
-    mapping.field("type","analyzed_text")
-    mapping.field("store",true)
+    mapping.field("type", "analyzed_text")
+    mapping.field("store", true)
     mapping.endObject()
     mapping.endObject()
     mapping.endObject()
@@ -46,6 +46,7 @@ object LoadMovieReviews {
     new LoadMovieReviews().indexData(path)
   }
 }
+
 class LoadMovieReviews extends Serializable {
 
   @transient lazy val sc = new SparkContext(new SparkConf().setAll(Map("es.nodes" -> "localhost", "es.port" -> "9200")).setMaster("local").setAppName("movie-reviews"))
@@ -63,12 +64,13 @@ class LoadMovieReviews extends Serializable {
   }
 
   def loadFilesInFolder(path: String, label: String): Unit = {
-    val filtered = sc.wholeTextFiles(path).map{ tuple =>
-      Opinion(label, tuple._2.replace('\n',' ').replace('"', ' ').replace('\\',' '))
+    val filtered = sc.wholeTextFiles(path).map { tuple =>
+      Opinion(label, tuple._2.replace('\n', ' ').replace('"', ' ').replace('\\', ' '))
       // to replace non-Ascii chars add > .replaceAll("[^\\x00-\\x7F]", "")
     }
     EsSpark.saveToEs(filtered, "movie-reviews/review")
   }
 
   case class Opinion(label: String, text: String)
+
 }

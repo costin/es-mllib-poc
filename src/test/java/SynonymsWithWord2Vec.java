@@ -76,7 +76,7 @@ public class SynonymsWithWord2Vec implements Serializable {
      * http://spark.apache.org/docs/1.2.0/mllib-collaborative-filtering.html
      * or even:
      * https://databricks.com/blog/2014/10/20/efficient-similarity-algorithm-now-in-spark-twitter.html
-     *
+     * <p/>
      * This needs token-plugin installed: https://github.com/brwe/es-token-plugin
      */
     @Test
@@ -117,7 +117,7 @@ public class SynonymsWithWord2Vec implements Serializable {
             while (words.hasNext()) {
                 Tuple2<String, float[]> word = words.next();
                 Tuple2<String, Object>[] similarWords = model.findSynonyms(word._1(), 10);
-                String synonymLineStart =  word._1() + "=>" + word._1() + ",";
+                String synonymLineStart = word._1() + "=>" + word._1() + ",";
                 out.write(synonymLineStart.getBytes());
                 int numSimilarWords = 0;
                 for (Tuple2<String, Object> similarWord : similarWords) {

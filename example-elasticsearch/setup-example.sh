@@ -1,12 +1,11 @@
 #!/bin/bash
 
-# get data
-
+# get the test data, see http://www.cs.cornell.edu/People/pabo/movie-review-data/
 mkdir data
 cd data
-
 wget -nc  http://www.cs.cornell.edu/people/pabo/movie-review-data/review_polarity.tar.gz 
 tar xf review_polarity.tar.gz
+
 cd ..
 cd example-elasticsearch
 
@@ -29,6 +28,7 @@ currentpath=$(pwd)
 # install marvel because sense is so convinient
 ../elasticsearch-1.5.2/bin/plugin -i elasticsearch/marvel/latest
 
+# enable dynamic scripting
 echo 'script.disable_dynamic: false' >> ../elasticsearch-1.5.2/config/elasticsearch.yml
 
 # start elasticsearch

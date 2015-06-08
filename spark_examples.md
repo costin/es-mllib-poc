@@ -28,28 +28,40 @@ and start the ide of your choice.
 
 To index the data run `LoadMovieReviews` to index the data.
 
-# Naive Bayes for sentiment classification
+# Naive Bayes and SVM for sentiment classification
 
-Run the test `NaiveBayesWithScriptFields.movieReviewsNaiveBayes()`. 
-This will train a naive bayes model and store it in elasticsearch as a [search template](https://www.elastic.co/guide/en/elasticsearch/reference/master/search-template.html). To use the template for classification run
+Run the test `MovieReviewsClassifierTests.testClassifiers()`.
+This will train a naive bayes model and an SVM and store it in elasticsearch as a [search template](https://www.elastic.co/guide/en/elasticsearch/reference/master/search-template.html). To use the template for classification run
 
 ```
 curl -XGET "http://localhost:9200/movie-reviews/_search/template" -d'
 {
-    "id": "model_script",
+    "id": "svm_model",
+    "params" : {
+        "field" : "text"
+    }
+}'
+```
+or
+
+```
+curl -XGET "http://localhost:9200/movie-reviews/_search/template" -d'
+{
+    "id": "naive_bayes_model",
     "params" : {
         "field" : "text"
     }
 }'
 ```
 
+This will predict a label for each document in the index movie-reviews and return an aggregation of postive and negative labels. 
+
 You can look at the model with
 
 ```
-curl -XGET "http://localhost:9200/_search/template/model_script"
+curl -XGET "http://localhost:9200/_search/template/svm_model"
 ```
 
-This will predict a label for each document in the index movie-reviews and return an aggregation of postive and negative labels. 
  
 # Synonyms with word2vec
 
