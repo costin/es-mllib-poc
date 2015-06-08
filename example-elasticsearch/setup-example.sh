@@ -27,6 +27,8 @@ currentpath=$(pwd)
 # install marvel because sense is so convinient
 ../elasticsearch-1.5.2/bin/plugin -i elasticsearch/marvel/latest
 
+echo 'script.disable_dynamic: false' >> ../elasticsearch-1.5.2/config/elasticsearch.yml
+
 # start elasticsearch
 cd ..
 elasticsearch-1.5.2/bin/elasticsearch 
