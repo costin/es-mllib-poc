@@ -3,7 +3,7 @@
 To setup data and elasticsearch and start elasticsearch, run 
 
 ```
-example-elasticsearch/setup-example.sh
+./example-elasticsearch/setup-example.sh
 ```
 
 Then run `LoadMovieReviews` to index the data.
