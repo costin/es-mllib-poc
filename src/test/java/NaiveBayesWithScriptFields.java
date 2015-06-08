@@ -99,14 +99,14 @@ public class NaiveBayesWithScriptFields implements Serializable {
     public void movieReviewsNaiveBayes() throws Exception {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
-        String[] featureTerms = getSignificantTermsAsStringList(200);
+        String[] featureTerms = getSignificantTermsAsStringList(5);
+        System.out.println("features : " + Arrays.toString(featureTerms));
         // get for each document a list of tfs for the featureTerms
         String target = "movie-reviews/review";
         JavaPairRDD<String, Map<String, Object>> esRDD = JavaEsSpark.esRDD(sc, target,
                 restRequestBody(featureTerms));
 
         // convert to labeled point (label + vector)
-        // get the analyzed text from the results
         JavaRDD<LabeledPoint> corpus = esRDD.map(
                 new Function<Tuple2<String, Map<String, Object>>, LabeledPoint>() {
                     public LabeledPoint call(Tuple2<String, Map<String, Object>> dataPoint) {
@@ -138,9 +138,10 @@ public class NaiveBayesWithScriptFields implements Serializable {
         // print some lines so we know how the data looks like
         System.out.println("from esRDD: " + esRDD.take(2));
         System.out.println("from corpus: " + corpus.take(2));
+
         // Split data into training (60%) and test (40%).
         // from https://spark.apache.org/docs/1.2.1/mllib-naive-bayes.html
-        JavaRDD<LabeledPoint>[] splits = corpus.randomSplit(new double[]{1, 2});
+        JavaRDD<LabeledPoint>[] splits = corpus.randomSplit(new double[]{6, 4});
         JavaRDD<LabeledPoint> training = splits[0];
         JavaRDD<LabeledPoint> test = splits[1];
 
@@ -155,10 +156,10 @@ public class NaiveBayesWithScriptFields implements Serializable {
                 return s._1().equals(s._2());
             }
         }).count() / test.count();
-        System.out.println("accuracy is " + accuracy);
-        System.out.println("labels is " + Arrays.toString(model.labels()));
-        System.out.println("thetas is " + Arrays.deepToString(model.theta()));
-        System.out.println("pi is " + Arrays.toString(model.pi()));
+        System.out.println("accuracy : " + accuracy);
+        System.out.println("labels : " + Arrays.toString(model.labels()));
+        System.out.println("thetas : " + Arrays.deepToString(model.theta()));
+        System.out.println("pi : " + Arrays.toString(model.pi()));
 
         // index tempalte search request that can be used for classification of new data
         Node node = NodeBuilder.nodeBuilder().client(true).node();
