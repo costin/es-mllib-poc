@@ -6,16 +6,14 @@ apply plugin: 'scala'
 apply plugin: 'eclipse'
 apply plugin: 'idea'
 
+task execute(type:JavaExec) {
+	main = mainClass
+	classpath = sourceSets.main.runtimeClasspath
+}
+
 repositories {
   mavenCentral()
   maven { url "http://oss.sonatype.org/content/repositories/snapshots" }
-}
-
-
-idea {
-	module {
-		downloadSources = true
-	}
 }
 
 compileJava {

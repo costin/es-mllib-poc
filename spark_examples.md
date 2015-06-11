@@ -14,23 +14,33 @@ This will
 - download and extract elasticsearch 1.5.2
 - download make and install [es-token-plugin](from https://github.com/brwe/es-token-plugin)
 - install marvel
-- start elasticsearch
+- start elasticsearch with default configuration and __dynamic scripting enabled__
 
-To index the data and run the tests run 
+
+To start ide of your choice:
 
 ```
 ./gradlew build -x test
 ./gradlew eclipse idea
 ```
 
-and start the ide of your choice.
 
 
-To index the data run `LoadMovieReviews` to index the data.
+To index the data run 
+
+```
+./gradlew execute -PmainClass=poc.LoadMovieReviews
+```
 
 # Naive Bayes and SVM for sentiment classification
 
-Run the test `MovieReviewsClassifierTests.testClassifiers()`.
+Run
+ 
+```
+./gradlew execute -PmainClass=poc.MovieReviewsClassifier
+
+```
+
 This will train a naive bayes model and an SVM and store it in elasticsearch as a [search template](https://www.elastic.co/guide/en/elasticsearch/reference/master/search-template.html). To use the template for classification run
 
 ```
@@ -65,7 +75,9 @@ curl -XGET "http://localhost:9200/_search/template/svm_model"
  
 # Synonyms with word2vec
 
-After setup as described above run the test `SynonymsWithWord2Vec.synonymsInMovieReviews()` which computes synonyms and writes them to a file.
+TODO: Synonym computation seems broken, takes forever to compute the synonyms not sure why.
+
+After setup as described above run the test `SynonymsWithWord2Vec.synonymsInMovieReviews()` which computes synonyms and writes them to a file. 
 
 ## Background
 
