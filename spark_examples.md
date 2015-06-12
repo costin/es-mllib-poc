@@ -40,8 +40,12 @@ Run
 ./gradlew execute -PmainClass=poc.MovieReviewsClassifier
 
 ```
+This will train a naive bayes model and an SVM and store it in elasticsearch as a [search template](https://www.elastic.co/guide/en/elasticsearch/reference/master/search-template.html).
 
-This will train a naive bayes model and an SVM and store it in elasticsearch as a [search template](https://www.elastic.co/guide/en/elasticsearch/reference/master/search-template.html). To use the template for classification run
+To try out all scripts and apis on elasticsearch side that are relevant for training and using the resulting model, see: [https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac](https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac)
+
+
+Most important: To use the computed template for classification run
 
 ```
 curl -XGET "http://localhost:9200/movie-reviews/_search/template" -d'
@@ -71,6 +75,8 @@ You can look at the model with
 ```
 curl -XGET "http://localhost:9200/_search/template/svm_model"
 ```
+
+
 
  
 # Synonyms with word2vec
