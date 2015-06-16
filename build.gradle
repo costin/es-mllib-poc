@@ -7,8 +7,10 @@ apply plugin: 'eclipse'
 apply plugin: 'idea'
 
 task execute(type:JavaExec) {
-	main = mainClass
-	classpath = sourceSets.main.runtimeClasspath
+     if (project.hasProperty('mainClass')) {
+          main = mainClass
+          classpath = sourceSets.main.runtimeClasspath
+     }
 }
 
 repositories {
