@@ -1,7 +1,10 @@
 package poc
 
-import org.apache.spark.SparkConf
-import org.apache.spark.SparkContext
+import org.apache.spark.{SparkConf, SparkContext}
+import org.elasticsearch.client.Requests
+import org.elasticsearch.common.xcontent.json.JsonXContent
+import org.elasticsearch.indices.IndexMissingException
+import org.elasticsearch.node.NodeBuilder
 import org.elasticsearch.spark.rdd.EsSpark
 
 /**
@@ -10,10 +13,40 @@ import org.elasticsearch.spark.rdd.EsSpark
  */
 object LoadMovieReviews {
   def main(args: Array[String]) = {
+    var node = NodeBuilder.nodeBuilder().client(true).node()
+    var client = node.client()
+    println("deleting index movie-reviews")
+    try {
+      client.admin().indices().prepareDelete("movie-reviews").get()
+    } catch {
+      case e: IndexMissingException => println("index movie-reviews does not exist")
+    }
+    var mapping = JsonXContent.contentBuilder()
+    mapping.startObject()
+    mapping.startObject("review")
+    mapping.startObject("properties")
+    mapping.startObject("text")
+    mapping.field("type", "string")
+    mapping.field("term_vector", "yes")
+    mapping.startObject("fields")
+    mapping.startObject("analyzed")
+    mapping.field("type", "analyzed_text")
+    mapping.field("store", true)
+    mapping.endObject()
+    mapping.endObject()
+    mapping.endObject()
+    mapping.endObject()
+    mapping.endObject()
+    mapping.endObject()
+    client.admin().indices().prepareCreate("movie-reviews").addMapping("review", mapping).get()
+    client.admin.cluster.health(Requests.clusterHealthRequest("movie-reviews").waitForGreenStatus()).actionGet()
+    node.close()
     val path = if (args.length == 1) args(0) else "./data/txt_sentoken"
+
     new LoadMovieReviews().indexData(path)
   }
 }
+
 class LoadMovieReviews extends Serializable {
 
   @transient lazy val sc = new SparkContext(new SparkConf().setAll(Map("es.nodes" -> "localhost", "es.port" -> "9200")).setMaster("local").setAppName("movie-reviews"))
@@ -31,12 +64,13 @@ class LoadMovieReviews extends Serializable {
   }
 
   def loadFilesInFolder(path: String, label: String): Unit = {
-    val filtered = sc.wholeTextFiles(path).map{ tuple =>
-      Opinion(label, tuple._2.replace('\n',' ').replace('"', ' ').replace('\\',' '))
+    val filtered = sc.wholeTextFiles(path).map { tuple =>
+      Opinion(label, tuple._2.replace('\n', ' ').replace('"', ' ').replace('\\', ' '))
       // to replace non-Ascii chars add > .replaceAll("[^\\x00-\\x7F]", "")
     }
     EsSpark.saveToEs(filtered, "movie-reviews/review")
   }
 
   case class Opinion(label: String, text: String)
+
 }
