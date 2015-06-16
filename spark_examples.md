@@ -40,7 +40,8 @@ Run
 ./gradlew execute -PmainClass=poc.MovieReviewsClassifier
 
 ```
-This will train a naive bayes model and an SVM and store it in elasticsearch as a [search template](https://www.elastic.co/guide/en/elasticsearch/reference/master/search-template.html).
+This will train a naive bayes model and an SVM and store it in elasticsearch as a [search template](https://www.elastic.co/guide/en/elasticsearch/reference/master/search-template.html) and also as an [indexed groovy script](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-scripting.html#_indexed_scripts). The latter is a little slower but also provides more flexibility. The search template adds the label as a script field and also aggregates the predicted labels.
+
 
 To try out all scripts and apis on elasticsearch side that are relevant for training and using the resulting model, see: [https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac](https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac)
 
@@ -68,15 +69,49 @@ curl -XGET "http://localhost:9200/movie-reviews/_search/template" -d'
 }'
 ```
 
-This will predict a label for each document in the index movie-reviews and return an aggregation of postive and negative labels. 
+To use the indexed script run
+
+```
+POST movie-reviews/_search
+{
+  "script_fields": {
+    "predicted_label": {
+      "script_id": "naive_bayes_model",
+      "params": {
+        "field": "text"
+      }
+    }
+  }
+}
+```
+
+or 
+
+```
+POST movie-reviews/_search
+{
+  "script_fields": {
+    "predicted_label": {
+      "script_id": "svm_model",
+      "params": {
+        "field": "text"
+      }
+    }
+  }
+}
+
 
 You can look at the model with
 
 ```
-curl -XGET "http://localhost:9200/_search/template/svm_model"
+GET /_search/template/svm_model
 ```
 
+and at the indexed script with
 
+```
+GET _scripts/groovy/svm_model
+```
 
  
 # Synonyms with word2vec

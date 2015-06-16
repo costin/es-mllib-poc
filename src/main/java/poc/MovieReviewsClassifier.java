@@ -29,6 +29,8 @@ import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.lease.Releasables;
+import org.elasticsearch.common.settings.ImmutableSettings;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
 import org.elasticsearch.search.aggregations.bucket.significant.SignificantStringTerms;
@@ -66,35 +68,29 @@ class MovieReviewsClassifier implements Serializable {
     /**
      * This needs token-plugin installed: https://github.com/brwe/es-token-plugin
      * <p/>
-     * Trains a naive bayes classifier and stores the resulting model as a template script back to es.
+     * Trains a naive bayes classifier and stores the resulting model as a template script and indexed groovy script back to elasticsearch.
      * <p/>
-     * Call the model with:
-     * curl -XGET "http://localhost:9200/movie-reviews/_search/template" -d'
-     * {
-     * "id": "naive_bayes_model",
-     * "params" : {
-     * "field" : "text"
-     * }
-     * }'
      * <p/>
-     * Get the model with
-     * curl -XGET "http://localhost:9200/_search/template/model_script"
+     * see https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac for details on how to use
      */
     public static void main(String[] args) {
-        sc = new JavaSparkContext(conf);
-        Node node = NodeBuilder.nodeBuilder().client(true).node();
-        Client client = node.client();
-        new MovieReviewsClassifier().run(client);
-        client.close();
-        node.close();
-        if (sc != null) {
-            sc.stop();
-            // wait for jetty & spark to properly shutdown
-            try {
-                Thread.sleep(TimeUnit.SECONDS.toMillis(2));
-            } catch (InterruptedException e) {
-
-
+        Node node = null;
+        Client client = null;
+        try {
+            sc = new JavaSparkContext(conf);
+            node = NodeBuilder.nodeBuilder().client(true).settings(ImmutableSettings.builder().put("script.disable_dynamic", false)).node();
+            client = node.client();
+            new MovieReviewsClassifier().run(client);
+        } finally {
+            Releasables.close(client);
+            Releasables.close(node);
+            if (sc != null) {
+                sc.stop();
+                // wait for jetty & spark to properly shutdown
+                try {
+                    Thread.sleep(TimeUnit.SECONDS.toMillis(2));
+                } catch (InterruptedException e) {
+                }
             }
         }
     }
@@ -103,7 +99,7 @@ class MovieReviewsClassifier implements Serializable {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
         System.out.println("Get descriptive terms for class positive and negative with significant terms aggregation");
-        String[] featureTerms = getSignificantTermsAsStringList(20, new JLHScore.JLHScoreBuilder(), client);
+        String[] featureTerms = getSignificantTermsAsStringList(990, new JLHScore.JLHScoreBuilder(), client);
         testClassifiers(featureTerms, client);
     }
 
@@ -124,23 +120,22 @@ class MovieReviewsClassifier implements Serializable {
         // try naive bayes
         System.out.println("train Naive Bayes ");
         final NaiveBayesModel model = NaiveBayes.train(training.rdd(), 1.0);
-        System.out.println("labels : " + Arrays.toString(model.labels()));
-        System.out.println("thetas : " + Arrays.deepToString(model.theta()));
-        System.out.println("pi : " + Arrays.toString(model.pi()));
         evaluate(test, model);
 
         // index template search request that can be used for classification of new data
         client.preparePutIndexedScript("mustache", "naive_bayes_model", naiveBayesSearchTemplate(model, featureTerms)).get();
+        // slow version but with parameters built in
+        client.preparePutIndexedScript("groovy", "naive_bayes_model", getNaiveBayesGroovyScript(model, featureTerms)).get();
 
         // try svm
         System.out.println("train SVM ");
         final SVMModel svmModel = SVMWithSGD.train(training.rdd(), 10, 0.1, 0.01, 1);
-        System.out.println("weights : " + Arrays.toString(svmModel.weights().toArray()));
-        System.out.println("intercept : " + svmModel.intercept());
         evaluate(test, svmModel);
 
         // index template search request that can be used for classification of new data
         client.preparePutIndexedScript("mustache", "svm_model", svmSearchTemplate(svmModel, featureTerms)).get();
+        // slow version but with parameters built in
+        client.preparePutIndexedScript("groovy", "svm_model", getSMVGroovyScript(svmModel, featureTerms)).get();
     }
 
     private void evaluate(JavaRDD<LabeledPoint> test, final ClassificationModel model) {
@@ -186,7 +181,7 @@ class MovieReviewsClassifier implements Serializable {
                 }
         );
         // print some lines so we know how the data looks like
-        System.out.println("example doucment vector: " + corpus.take(1));
+        System.out.println("example document vector: " + corpus.take(1));
         return corpus;
     }
 
@@ -221,7 +216,6 @@ class MovieReviewsClassifier implements Serializable {
         significantTerms = ((SignificantStringTerms) (labelBucket.get(1).getAggregations().asMap().get("features"))).getBuckets();
         addFeatures(significantTerms, features);
         String[] featureTerms = features.toArray(new String[features.size()]);
-        System.out.println("features : " + Arrays.toString(featureTerms));
         return featureTerms;
     }
 
@@ -303,5 +297,44 @@ class MovieReviewsClassifier implements Serializable {
                 "  ]\n" +
                 "  }\n" +
                 "}";
+    }
+
+    public String getNaiveBayesGroovyScript(NaiveBayesModel model, String[] features) {
+        return "{\"script\": \"" +
+                "import org.apache.spark.mllib.classification.NaiveBayesModel;" +
+                "import org.elasticsearch.search.lookup.IndexField;" +
+                "import org.elasticsearch.search.lookup.IndexFieldTerm;" +
+                "import org.apache.spark.mllib.linalg.Vectors;" +
+                "features = " + Arrays.toString(features).replace("\"", "\\\"") + ";" +
+                "double[] labels = " + Arrays.toString(model.labels()) + ";" +
+                "double[][] thetas = " + Arrays.deepToString(model.theta()) + ";" +
+                "double[] pi = " + Arrays.toString(model.pi()) + ";" +
+                "NaiveBayesModel model = new NaiveBayesModel(labels, pi, thetas);" +
+                "double[] tfs = new double[features.size()];" +
+                "for (int i = 0; i < features.size(); i++) {" +
+                "    tfs[i] = _index[field][features.get(i)].tf();" +
+                "}" + ";" +
+                "return model.predict(Vectors.dense(tfs));" +
+                "\"}";
+
+    }
+
+    public String getSMVGroovyScript(SVMModel model, String[] features) {
+        return "{\"script\": \"" +
+                "import org.apache.spark.mllib.classification.SVMModel;" +
+                "import org.elasticsearch.search.lookup.IndexField;" +
+                "import org.elasticsearch.search.lookup.IndexFieldTerm;" +
+                "import org.apache.spark.mllib.linalg.Vectors;" +
+                "features = " + Arrays.toString(features).replace("\"", "\\\"") + ";" +
+                "double[] weights = " + Arrays.toString(model.weights().toArray()) + ";" +
+                "double intercept = " + model.intercept() + ";" +
+                "SVMModel model = new SVMModel(Vectors.dense(weights), intercept);" +
+                "double[] tfs = new double[features.size()];" +
+                "for (int i = 0; i < features.size(); i++) {" +
+                "    tfs[i] = _index[field][features.get(i)].tf();" +
+                "}" + ";" +
+                "return model.predict(Vectors.dense(tfs));" +
+                "\"}";
+
     }
 }
