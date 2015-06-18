@@ -30,7 +30,8 @@ import org.elasticsearch.search.aggregations.bucket.significant.heuristics.JLHSc
 import java.util.concurrent.TimeUnit;
 
 
-class MovieReviewsClassifier extends ClassifierBase {
+class TweetClassifier extends ClassifierBase {
+
 
     /**
      * This needs token-plugin installed: https://github.com/brwe/es-token-plugin
@@ -47,7 +48,7 @@ class MovieReviewsClassifier extends ClassifierBase {
             sc = new JavaSparkContext(conf);
             node = NodeBuilder.nodeBuilder().client(true).settings(ImmutableSettings.builder().put("script.disable_dynamic", false)).node();
             client = node.client();
-            new MovieReviewsClassifier().run(client);
+            new TweetClassifier().run(client);
         } finally {
             Releasables.close(client);
             Releasables.close(node);
@@ -66,8 +67,7 @@ class MovieReviewsClassifier extends ClassifierBase {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
         System.out.println("Get descriptive terms for class positive and negative with significant terms aggregation");
-        String[] featureTerms = getSignificantTermsAsStringList(990, new JLHScore.JLHScoreBuilder(), client, "movie-reviews");
-        trainClassifiersAndWriteModels(featureTerms, client, "movie-reviews/review", "_movies");
+        String[] featureTerms = getSignificantTermsAsStringList(990, new JLHScore.JLHScoreBuilder(), client, "sentiment140");
+        trainClassifiersAndWriteModels(featureTerms, client, "sentiment140/tweets", "_tweets");
     }
-
 }

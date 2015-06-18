@@ -25,12 +25,18 @@ To start ide of your choice:
 ```
 
 
-
 To index the data run 
 
 ```
 ./gradlew execute -PmainClass=poc.LoadMovieReviews
 ```
+
+or, for a bigger dataset:
+
+```
+./gradlew execute -PmainClass=poc.LoadTweets
+```
+
 
 # Naive Bayes and SVM for sentiment classification
 
@@ -40,6 +46,15 @@ Run
 ./gradlew execute -PmainClass=poc.MovieReviewsClassifier
 
 ```
+
+or, for the bigger dataset
+
+ 
+```
+./gradlew execute -PmainClass=poc.TweetClassifier
+
+```
+
 This will train a naive bayes model and an SVM and store it in elasticsearch as a [search template](https://www.elastic.co/guide/en/elasticsearch/reference/master/search-template.html) and also as an [indexed groovy script](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-scripting.html#_indexed_scripts). The latter is a little slower but also provides more flexibility. The search template adds the label as a script field and also aggregates the predicted labels.
 
 

@@ -6,6 +6,9 @@ cd data
 wget -nc  http://www.cs.cornell.edu/people/pabo/movie-review-data/review_polarity.tar.gz 
 tar xf review_polarity.tar.gz
 
+wget -nc http://cs.stanford.edu/people/alecmgo/trainingandtestdata.zip .
+unzip trainingandtestdata.zip
+
 cd ..
 cd example-elasticsearch
 
