@@ -34,7 +34,7 @@ To index the data run
 or, for a bigger dataset:
 
 ```
-./gradlew execute -PmainClass=poc.LoadTweets
+./gradlew execute -PmainClass=poc.LoadTwitter
 ```
 
 

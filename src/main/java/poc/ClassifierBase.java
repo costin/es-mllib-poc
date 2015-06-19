@@ -56,7 +56,7 @@ class ClassifierBase implements Serializable {
     }
 
     protected static final transient SparkConf conf = new SparkConf().setAll(propertiesAsScalaMap(ES_SPARK_CFG)).setMaster(
-            "local[5]").setAppName("estest");
+            "local[3]").setAppName("estest");
 
     protected static transient JavaSparkContext sc = null;
 

@@ -7,7 +7,7 @@ wget -nc  http://www.cs.cornell.edu/people/pabo/movie-review-data/review_polarit
 tar xf review_polarity.tar.gz
 
 wget -nc http://cs.stanford.edu/people/alecmgo/trainingandtestdata.zip .
-unzip trainingandtestdata.zip
+unzip -o trainingandtestdata.zip
 
 cd ..
 cd example-elasticsearch
@@ -36,6 +36,9 @@ echo 'script.disable_dynamic: false' >> ../elasticsearch-1.5.2/config/elasticsea
 
 # set reloading of file scripts lower
 echo 'watcher.interval: "10s"' >> ../elasticsearch-1.5.2/config/elasticsearch.yml
+
+# should work on laptop also plus I want to watch videos while aggs are computing
+echo 'threadpool.search.size: 3' >> ../elasticsearch-1.5.2/config/elasticsearch.yml
 
 # start elasticsearch
 cd ..
