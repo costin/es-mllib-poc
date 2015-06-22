@@ -28,8 +28,11 @@ import org.apache.spark.mllib.classification.*;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.storage.StorageLevel;
+import org.elasticsearch.action.ListenableActionFuture;
 import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.common.logging.ESLoggerFactory;
+import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.search.aggregations.bucket.significant.SignificantStringTerms;
 import org.elasticsearch.search.aggregations.bucket.significant.SignificantTerms;
 import org.elasticsearch.search.aggregations.bucket.significant.heuristics.SignificanceHeuristicBuilder;
@@ -38,8 +41,10 @@ import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 import scala.Serializable;
 import scala.Tuple2;
 
+import java.io.IOException;
 import java.util.*;
 
+import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.significantTerms;
 import static org.elasticsearch.search.aggregations.AggregationBuilders.terms;
 import static scala.collection.JavaConversions.propertiesAsScalaMap;
@@ -61,7 +66,7 @@ class ClassifierBase implements Serializable {
     protected static transient JavaSparkContext sc = null;
 
 
-    protected void trainClassifiersAndWriteModels(String[] featureTerms, Client client, String indexAndType, String modelSuffix) {
+    protected void trainClassifiersAndWriteModels(String[] featureTerms, Client client, String indexAndType, String modelSuffix) throws IOException {
         // get for each document a vector of tfs for the featureTerms
         JavaPairRDD<String, Map<String, Object>> esRDD = JavaEsSpark.esRDD(sc, indexAndType,
                 restRequestBody(featureTerms));
@@ -77,25 +82,75 @@ class ClassifierBase implements Serializable {
 
         // try naive bayes
         System.out.println("train Naive Bayes ");
-        training.persist(StorageLevel.MEMORY_AND_DISK());
+        //training.persist(StorageLevel.MEMORY_AND_DISK());
         final NaiveBayesModel model = NaiveBayes.train(training.rdd(), 1.0);
         evaluate(test, model);
-
         // index template search request that can be used for classification of new data
-        client.preparePutIndexedScript("mustache", "naive_bayes_model" + modelSuffix, naiveBayesSearchTemplate(model, featureTerms)).get();
+        doAndPrintError(client.preparePutIndexedScript("mustache", "naive_bayes_model" + modelSuffix, naiveBayesSearchTemplate(model, featureTerms)).execute(),
+                "naive_bayes_model" + modelSuffix,
+                "could not index search template");
         // slow version but with parameters built in
-        client.preparePutIndexedScript("groovy", "naive_bayes_model" + modelSuffix, getNaiveBayesGroovyScript(model, featureTerms)).get();
+        doAndPrintError(client.preparePutIndexedScript("groovy", "naive_bayes_model" + modelSuffix, getNaiveBayesGroovyScript(model, featureTerms)).execute(),
+                "naive_bayes_model" + modelSuffix,
+                "could not index groovy script");
+
+        // index parameters in separate doc
+        doAndPrintError(client.prepareIndex("model", "params", "naive_bayes" + modelSuffix).setSource(getParamsDocSource(model, featureTerms)).execute(),
+                "naive_bayes_model" + modelSuffix,
+                "could not store parameter doc");
 
         // try svm
         System.out.println("train SVM ");
-        training.persist(StorageLevel.MEMORY_AND_DISK());
+        //training.persist(StorageLevel.MEMORY_AND_DISK());
         final SVMModel svmModel = SVMWithSGD.train(training.rdd(), 10, 0.1, 0.01, 1);
         evaluate(test, svmModel);
 
         // index template search request that can be used for classification of new data
-        client.preparePutIndexedScript("mustache", "svm_model" + modelSuffix, svmSearchTemplate(svmModel, featureTerms)).get();
+        doAndPrintError(client.preparePutIndexedScript("mustache", "svm_model" + modelSuffix, svmSearchTemplate(svmModel, featureTerms)).execute(),
+                "svm_model" + modelSuffix,
+                "could not index search template");
         // slow version but with parameters built in
-        client.preparePutIndexedScript("groovy", "svm_model" + modelSuffix, getSMVGroovyScript(svmModel, featureTerms)).get();
+        doAndPrintError(client.preparePutIndexedScript("groovy", "svm_model" + modelSuffix, getSMVGroovyScript(svmModel, featureTerms)).execute(),
+                "svm_model" + modelSuffix,
+                "could not index groovy script");
+
+        // index parameters in separate doc
+        doAndPrintError(client.prepareIndex("model", "params", "svm_model" + modelSuffix).setSource(getParamsDocSource(svmModel, featureTerms)).execute(),
+                "svm_model" + modelSuffix,
+                "could not store parameter doc");
+    }
+
+    private void doAndPrintError(ListenableActionFuture response, String loggerName, String message) {
+        try {
+            response.actionGet();
+        } catch (Throwable t) {
+            ESLoggerFactory.getLogger(loggerName).info(message, t);
+        }
+    }
+
+    private XContentBuilder getParamsDocSource(NaiveBayesModel model, String[] featureTerms) throws IOException {
+        return jsonBuilder().startObject()
+                .field("features", removeQuotes(featureTerms))
+                .field("pi", model.pi())
+                .field("thetas", model.theta())
+                .field("labels", model.labels())
+                .endObject();
+    }
+
+    private String[] removeQuotes(String[] featureTerms) {
+        String[] featuresWithoutQuotes = new String[featureTerms.length];
+        for (int i = 0; i < featureTerms.length; i++) {
+            featuresWithoutQuotes[i] = featureTerms[i].replace("\"", "");
+        }
+        return featuresWithoutQuotes;
+    }
+
+    private XContentBuilder getParamsDocSource(SVMModel model, String[] featureTerms) throws IOException {
+        return jsonBuilder().startObject()
+                .field("features", removeQuotes(featureTerms))
+                .field("weights", model.weights())
+                .field("intercept", model.intercept())
+                .endObject();
     }
 
     private void evaluate(JavaRDD<LabeledPoint> test, final ClassificationModel model) {

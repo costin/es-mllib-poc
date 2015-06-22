@@ -27,6 +27,7 @@ import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
 import org.elasticsearch.search.aggregations.bucket.significant.heuristics.JLHScore;
 
+import java.io.IOException;
 import java.util.concurrent.TimeUnit;
 
 
@@ -41,7 +42,7 @@ class TweetClassifier extends ClassifierBase {
      * <p/>
      * see https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac for details on how to use
      */
-    public static void main(String[] args) {
+    public static void main(String[] args) throws IOException {
         Node node = null;
         Client client = null;
         try {
@@ -63,11 +64,11 @@ class TweetClassifier extends ClassifierBase {
         }
     }
 
-    public void run(Client client) {
+    public void run(Client client) throws IOException {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
         System.out.println("Get descriptive terms for class positive and negative with significant terms aggregation");
-        String[] featureTerms = getSignificantTermsAsStringList(990, new JLHScore.JLHScoreBuilder(), client, "sentiment140");
+        String[] featureTerms = getSignificantTermsAsStringList(2500, new JLHScore.JLHScoreBuilder(), client, "sentiment140");
         trainClassifiersAndWriteModels(featureTerms, client, "sentiment140/tweets", "_tweets");
     }
 }

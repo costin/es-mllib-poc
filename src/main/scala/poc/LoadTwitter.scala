@@ -26,7 +26,7 @@ object LoadTwitter {
     } catch {
       case e: IndexMissingException => println("index sentiment140 does not exist")
     }
-    client.admin().indices().prepareCreate("sentiment140").get()
+    client.admin().indices().prepareCreate("sentiment140").addMapping("tweets", "{\"tweets\":{\"properties\":{\"text\":{\"type\":\"string\", \"term_vector\":\"yes\"}}}}").get()
     client.admin.cluster.health(Requests.clusterHealthRequest("sentiment140").waitForGreenStatus()).actionGet()
     node.close()
     val path = if (args.length == 1) args(0) else "./data/"
