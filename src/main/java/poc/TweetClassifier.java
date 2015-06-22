@@ -68,7 +68,7 @@ class TweetClassifier extends ClassifierBase {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
         System.out.println("Get descriptive terms for class positive and negative with significant terms aggregation");
-        String[] featureTerms = getSignificantTermsAsStringList(2500, new JLHScore.JLHScoreBuilder(), client, "sentiment140");
+        String[] featureTerms = getSignificantTermsAsStringList(10000, new JLHScore.JLHScoreBuilder(), client, "sentiment140");
         trainClassifiersAndWriteModels(featureTerms, client, "sentiment140/tweets", "_tweets");
     }
 }

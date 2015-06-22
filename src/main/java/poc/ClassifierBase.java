@@ -72,7 +72,7 @@ class ClassifierBase implements Serializable {
                 restRequestBody(featureTerms));
 
         // convert to labeled point (label + vector)
-        JavaRDD<LabeledPoint> corpus = convertToLabeledPoint(esRDD);
+        JavaRDD<LabeledPoint> corpus = convertToLabeledPoint(esRDD, featureTerms.length);
 
         // Split data into training (60%) and test (40%).
         // from https://spark.apache.org/docs/1.2.1/mllib-naive-bayes.html
@@ -82,26 +82,29 @@ class ClassifierBase implements Serializable {
 
         // try naive bayes
         System.out.println("train Naive Bayes ");
-        //training.persist(StorageLevel.MEMORY_AND_DISK());
+        training.persist(StorageLevel.MEMORY_AND_DISK());
         final NaiveBayesModel model = NaiveBayes.train(training.rdd(), 1.0);
         evaluate(test, model);
+        System.out.println("write model parameters ");
+        // index parameters in separate doc
+        doAndPrintError(client.prepareIndex("model", "params", "naive_bayes_model_params" + modelSuffix).setSource(getParamsDocSource(model, featureTerms)).execute(),
+                "naive_bayes_model" + modelSuffix,
+                "could not store parameter doc");
+        System.out.println("write search template ");
         // index template search request that can be used for classification of new data
         doAndPrintError(client.preparePutIndexedScript("mustache", "naive_bayes_model" + modelSuffix, naiveBayesSearchTemplate(model, featureTerms)).execute(),
                 "naive_bayes_model" + modelSuffix,
                 "could not index search template");
+        System.out.println("write groovy script ");
         // slow version but with parameters built in
         doAndPrintError(client.preparePutIndexedScript("groovy", "naive_bayes_model" + modelSuffix, getNaiveBayesGroovyScript(model, featureTerms)).execute(),
                 "naive_bayes_model" + modelSuffix,
                 "could not index groovy script");
 
-        // index parameters in separate doc
-        doAndPrintError(client.prepareIndex("model", "params", "naive_bayes" + modelSuffix).setSource(getParamsDocSource(model, featureTerms)).execute(),
-                "naive_bayes_model" + modelSuffix,
-                "could not store parameter doc");
+
 
         // try svm
         System.out.println("train SVM ");
-        //training.persist(StorageLevel.MEMORY_AND_DISK());
         final SVMModel svmModel = SVMWithSGD.train(training.rdd(), 10, 0.1, 0.01, 1);
         evaluate(test, svmModel);
 
@@ -115,7 +118,7 @@ class ClassifierBase implements Serializable {
                 "could not index groovy script");
 
         // index parameters in separate doc
-        doAndPrintError(client.prepareIndex("model", "params", "svm_model" + modelSuffix).setSource(getParamsDocSource(svmModel, featureTerms)).execute(),
+        doAndPrintError(client.prepareIndex("model", "params", "svm_model_params" + modelSuffix).setSource(getParamsDocSource(svmModel, featureTerms)).execute(),
                 "svm_model" + modelSuffix,
                 "could not store parameter doc");
     }
@@ -167,25 +170,41 @@ class ClassifierBase implements Serializable {
         System.out.println("accuracy : " + accuracy);
     }
 
-    private JavaRDD<LabeledPoint> convertToLabeledPoint(JavaPairRDD<String, Map<String, Object>> esRDD) {
+    private JavaRDD<LabeledPoint> convertToLabeledPoint(JavaPairRDD<String, Map<String, Object>> esRDD, final int vectorLength) {
         JavaRDD<LabeledPoint> corpus = esRDD.map(
                 new Function<Tuple2<String, Map<String, Object>>, LabeledPoint>() {
                     public LabeledPoint call(Tuple2<String, Map<String, Object>> dataPoint) {
                         Double doubleLabel = getLabel(dataPoint);
-                        double[] doubleFeatures = getFeatures(dataPoint);
-                        return new LabeledPoint(doubleLabel, Vectors.dense(doubleFeatures));
+                        return new LabeledPoint(doubleLabel, Vectors.sparse(vectorLength, getIndices(dataPoint), getValues(dataPoint)));
                     }
 
-                    private double[] getFeatures(Tuple2<String, Map<String, Object>> dataPoint) {
+                    private double[] getValues(Tuple2<String, Map<String, Object>> dataPoint) {
                         // convert ArrayList to double[]
-                        ArrayList features = (ArrayList) (dataPoint._2().get("vector"));
-                        // field values are an array in an array
-                        features = (ArrayList) features.get(0);
-                        double[] doubleFeatures = new double[features.size()];
-                        for (int i = 0; i < features.size(); i++) {
-                            doubleFeatures[i] = ((Number) features.get(i)).doubleValue();
+                        Map<String, Object> indicesAndValues = (Map) (((ArrayList)dataPoint._2().get("vector")).get(0));
+                        ArrayList valuesList = (ArrayList) indicesAndValues.get("values");
+                        if (valuesList == null)  {
+                            return new double[0];
+                        } else {
+                            double[] values = new double[valuesList.size()];
+                            for (int i = 0; i < valuesList.size(); i++) {
+                                values[i] = ((Number) valuesList.get(i)).doubleValue();
+                            }
+                            return values;
                         }
-                        return doubleFeatures;
+                    }
+                    private int[] getIndices(Tuple2<String, Map<String, Object>> dataPoint) {
+                        // convert ArrayList to int[]
+                        Map<String, Object> indicesAndValues = (Map) (((ArrayList)dataPoint._2().get("vector")).get(0));
+                        ArrayList indicesList = (ArrayList) indicesAndValues.get("indices");
+                        if (indicesList == null)  {
+                            return new int[0];
+                        } else {
+                            int[] indices = new int[indicesList.size()];
+                            for (int i = 0; i < indicesList.size(); i++) {
+                                indices[i] = ((Number) indicesList.get(i)).intValue();
+                            }
+                            return indices;
+                        }
                     }
 
                     private Double getLabel(Tuple2<String, Map<String, Object>> dataPoint) {
@@ -205,7 +224,7 @@ class ClassifierBase implements Serializable {
         return "{\n" +
                 "  \"script_fields\": {\n" +
                 "    \"vector\": {\n" +
-                "      \"script\": \"vector\",\n" +
+                "      \"script\": \"sparse_vector\",\n" +
                 "      \"lang\": \"native\",\n" +
                 "      \"params\": {\n" +
                 "        \"features\": " + Arrays.toString(featureTerms) +

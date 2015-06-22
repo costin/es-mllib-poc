@@ -55,78 +55,72 @@ or, for the bigger dataset
 
 ```
 
-This will train a naive bayes model and an SVM and store it in elasticsearch as a [search template](https://www.elastic.co/guide/en/elasticsearch/reference/master/search-template.html) and also as an [indexed groovy script](https://www.elastic.co/guide/en/elasticsearch/reference/current/modules-scripting.html#_indexed_scripts). The latter is a little slower but also provides more flexibility. The search template adds the label as a script field and also aggregates the predicted labels.
-
-
-To try out all scripts and apis on elasticsearch side that are relevant for training and using the resulting model, see: [https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac](https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac)
-
-
-Most important: To use the computed template for classification run
+This will train a naive bayes model and an SVM and store the parameters back to elasticsearch under
 
 ```
-curl -XGET "http://localhost:9200/movie-reviews/_search/template" -d'
-{
-    "id": "svm_model",
-    "params" : {
-        "field" : "text"
+GET model/params/id
+```
+where id can be `naive_bayes_model_params_(tweets|movies)` for the naive bayes models trained with tweet or movie dataset or `svm_model_params_(tweets|movies)`.
+
+To apply the models to new data in elasticsearch you can run a script like this from anywhere where you would normally use scripts:
+
+```
+    {
+      "script": "naive_bayes_model_stored_parameters",
+      "lang": "native",
+      "params": {
+        "field": "text",
+        "index": "model",
+        "type": "params",
+        "id": "naive_bayes_model_params_tweets"
+      }
     }
-}'
 ```
-or
+For example:
 
 ```
-curl -XGET "http://localhost:9200/movie-reviews/_search/template" -d'
-{
-    "id": "naive_bayes_model",
-    "params" : {
-        "field" : "text"
-    }
-}'
-```
-
-To use the indexed script run
-
-```
-POST movie-reviews/_search
+GET sentiment140/tweets/_search
 {
   "script_fields": {
     "predicted_label": {
-      "script_id": "naive_bayes_model",
+      "script": "naive_bayes_model_stored_parameters_sparse_vectors",
+      "lang": "native",
       "params": {
-        "field": "text"
+        "field": "text",
+        "index": "model",
+        "type": "params",
+        "id": "naive_bayes_tweets"
+      }
+    }
+  },
+  "aggs": {
+    "actual": {
+      "terms": {
+        "field": "label",
+        "size": 10
+      },
+      "aggs": {
+        "predicted": {
+          "terms": {
+            "script": "naive_bayes_model_stored_parameters_sparse_vectors",
+            "lang": "native",
+            "params": {
+              "field": "text",
+              "index": "model",
+              "type": "params",
+              "id": "naive_bayes_tweets"
+            }
+          }
+        }
       }
     }
   }
 }
 ```
 
-or 
-
-```
-POST movie-reviews/_search
-{
-  "script_fields": {
-    "predicted_label": {
-      "script_id": "svm_model",
-      "params": {
-        "field": "text"
-      }
-    }
-  }
-}
 
 
-You can look at the model with
-
-```
-GET /_search/template/svm_model
-```
-
-and at the indexed script with
-
-```
-GET _scripts/groovy/svm_model
-```
+See also [https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac](https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac) for more examples.
 
  
 # Synonyms with word2vec
