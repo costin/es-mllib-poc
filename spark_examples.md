@@ -89,7 +89,7 @@ GET sentiment140/tweets/_search
         "field": "text",
         "index": "model",
         "type": "params",
-        "id": "naive_bayes_tweets"
+        "id": "naive_bayes_model_params_tweets"
       }
     }
   },
@@ -108,7 +108,7 @@ GET sentiment140/tweets/_search
               "field": "text",
               "index": "model",
               "type": "params",
-              "id": "naive_bayes_tweets"
+              "id": "naive_bayes_model_params_tweets"
             }
           }
         }
