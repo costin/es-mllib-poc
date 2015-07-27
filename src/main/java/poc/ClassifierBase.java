@@ -85,38 +85,19 @@ class ClassifierBase implements Serializable {
         training.persist(StorageLevel.MEMORY_AND_DISK());
         final NaiveBayesModel model = NaiveBayes.train(training.rdd(), 1.0);
         evaluate(test, model);
-        System.out.println("write model parameters ");
+
+        System.out.println("write model parameters for naive bayes");
         // index parameters in separate doc
         doAndPrintError(client.prepareIndex("model", "params", "naive_bayes_model_params" + modelSuffix).setSource(getParamsDocSource(model, featureTerms)).execute(),
                 "naive_bayes_model" + modelSuffix,
                 "could not store parameter doc");
-        System.out.println("write search template ");
-        // index template search request that can be used for classification of new data
-        doAndPrintError(client.preparePutIndexedScript("mustache", "naive_bayes_model" + modelSuffix, naiveBayesSearchTemplate(model, featureTerms)).execute(),
-                "naive_bayes_model" + modelSuffix,
-                "could not index search template");
-        System.out.println("write groovy script ");
-        // slow version but with parameters built in
-        doAndPrintError(client.preparePutIndexedScript("groovy", "naive_bayes_model" + modelSuffix, getNaiveBayesGroovyScript(model, featureTerms)).execute(),
-                "naive_bayes_model" + modelSuffix,
-                "could not index groovy script");
-
-
 
         // try svm
         System.out.println("train SVM ");
         final SVMModel svmModel = SVMWithSGD.train(training.rdd(), 10, 0.1, 0.01, 1);
         evaluate(test, svmModel);
 
-        // index template search request that can be used for classification of new data
-        doAndPrintError(client.preparePutIndexedScript("mustache", "svm_model" + modelSuffix, svmSearchTemplate(svmModel, featureTerms)).execute(),
-                "svm_model" + modelSuffix,
-                "could not index search template");
-        // slow version but with parameters built in
-        doAndPrintError(client.preparePutIndexedScript("groovy", "svm_model" + modelSuffix, getSMVGroovyScript(svmModel, featureTerms)).execute(),
-                "svm_model" + modelSuffix,
-                "could not index groovy script");
-
+        System.out.println("write model parameters for svm");
         // index parameters in separate doc
         doAndPrintError(client.prepareIndex("model", "params", "svm_model_params" + modelSuffix).setSource(getParamsDocSource(svmModel, featureTerms)).execute(),
                 "svm_model" + modelSuffix,
@@ -257,118 +238,5 @@ class ClassifierBase implements Serializable {
         for (SignificantTerms.Bucket bucket : significantTerms) {
             featureArray.add("\"" + bucket.getKey() + "\"");
         }
-    }
-
-    private String naiveBayesSearchTemplate(NaiveBayesModel model, String[] features) {
-        return "{" +
-                "  \"template\": {\n" +
-                "    \"script_fields\": {\n" +
-                "      \"predicted_label\": {\n" +
-                "        \"params\": {\n" +
-                "          \"features\": " + Arrays.deepToString(features) + ",\n" +
-                "          \"field\": \"{{field}}\",\n" +
-                "          \"thetas\": " + Arrays.deepToString(model.theta()) + ",\n" +
-                "          \"labels\": " + Arrays.toString(model.labels()) + ",\n" +
-                "          \"pi\": " + Arrays.toString(model.pi()) + "\n" +
-                "        },\n" +
-                "        \"script\": \"naive_bayes_model\",\n" +
-                "        \"lang\": \"native\"\n" +
-                "      }\n" +
-                "    },\n" +
-                "    \"aggregations\": {\n" +
-                "      \"terms\": {\n" +
-                "        \"terms\": {\n" +
-                "          \"params\": {\n" +
-                "            \"features\": " + Arrays.deepToString(features) + ",\n" +
-                "            \"field\": \"{{field}}\",\n" +
-                "            \"thetas\": " + Arrays.deepToString(model.theta()) + ",\n" +
-                "            \"labels\": " + Arrays.toString(model.labels()) + ",\n" +
-                "            \"pi\": " + Arrays.toString(model.pi()) + "\n" +
-                "          },\n" +
-                "          \"script\": \"naive_bayes_model\",\n" +
-                "          \"lang\": \"native\"\n" +
-                "        }\n" +
-                "      }\n" +
-                "    },\n" +
-                "  \"fields\": [\n" +
-                "    \"label\", \"_source\"\n" +
-                "  ]\n" +
-                "  }\n" +
-                "}";
-    }
-
-    private String svmSearchTemplate(SVMModel model, String[] features) {
-        return "{" +
-                "  \"template\": {\n" +
-                "    \"script_fields\": {\n" +
-                "      \"predicted_label\": {\n" +
-                "        \"params\": {\n" +
-                "          \"features\": " + Arrays.toString(features) + ",\n" +
-                "          \"field\": \"{{field}}\",\n" +
-                "          \"weights\": " + Arrays.toString(model.weights().toArray()) + ",\n" +
-                "          \"intercept\": " + model.intercept() +
-                "        },\n" +
-                "        \"script\": \"svm_model\",\n" +
-                "        \"lang\": \"native\"\n" +
-                "      }\n" +
-                "    },\n" +
-                "    \"aggregations\": {\n" +
-                "      \"terms\": {\n" +
-                "        \"terms\": {\n" +
-                "          \"params\": {\n" +
-                "            \"features\": " + Arrays.toString(features) + ",\n" +
-                "            \"field\": \"{{field}}\",\n" +
-                "            \"weights\": " + Arrays.toString(model.weights().toArray()) + ",\n" +
-                "            \"intercept\": " + model.intercept() +
-                "          },\n" +
-                "          \"script\": \"svm_model\",\n" +
-                "          \"lang\": \"native\"\n" +
-                "        }\n" +
-                "      }\n" +
-                "    },\n" +
-                "  \"fields\": [\n" +
-                "    \"label\", \"_source\"\n" +
-                "  ]\n" +
-                "  }\n" +
-                "}";
-    }
-
-    public String getNaiveBayesGroovyScript(NaiveBayesModel model, String[] features) {
-        return "{\"script\": \"" +
-                "import org.apache.spark.mllib.classification.NaiveBayesModel;" +
-                "import org.elasticsearch.search.lookup.IndexField;" +
-                "import org.elasticsearch.search.lookup.IndexFieldTerm;" +
-                "import org.apache.spark.mllib.linalg.Vectors;" +
-                "features = " + Arrays.toString(features).replace("\"", "\\\"") + ";" +
-                "double[] labels = " + Arrays.toString(model.labels()) + ";" +
-                "double[][] thetas = " + Arrays.deepToString(model.theta()) + ";" +
-                "double[] pi = " + Arrays.toString(model.pi()) + ";" +
-                "NaiveBayesModel model = new NaiveBayesModel(labels, pi, thetas);" +
-                "double[] tfs = new double[features.size()];" +
-                "for (int i = 0; i < features.size(); i++) {" +
-                "    tfs[i] = _index[field][features.get(i)].tf();" +
-                "}" + ";" +
-                "return model.predict(Vectors.dense(tfs));" +
-                "\"}";
-
-    }
-
-    public String getSMVGroovyScript(SVMModel model, String[] features) {
-        return "{\"script\": \"" +
-                "import org.apache.spark.mllib.classification.SVMModel;" +
-                "import org.elasticsearch.search.lookup.IndexField;" +
-                "import org.elasticsearch.search.lookup.IndexFieldTerm;" +
-                "import org.apache.spark.mllib.linalg.Vectors;" +
-                "features = " + Arrays.toString(features).replace("\"", "\\\"") + ";" +
-                "double[] weights = " + Arrays.toString(model.weights().toArray()) + ";" +
-                "double intercept = " + model.intercept() + ";" +
-                "SVMModel model = new SVMModel(Vectors.dense(weights), intercept);" +
-                "double[] tfs = new double[features.size()];" +
-                "for (int i = 0; i < features.size(); i++) {" +
-                "    tfs[i] = _index[field][features.get(i)].tf();" +
-                "}" + ";" +
-                "return model.predict(Vectors.dense(tfs));" +
-                "\"}";
-
     }
 }
