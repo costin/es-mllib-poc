@@ -231,6 +231,7 @@ class ClassifierBase implements Serializable {
         significantTerms = ((SignificantStringTerms) (labelBucket.get(1).getAggregations().asMap().get("features"))).getBuckets();
         addFeatures(significantTerms, features);
         String[] featureTerms = features.toArray(new String[features.size()]);
+        Arrays.sort(featureTerms);
         return featureTerms;
     }
 
