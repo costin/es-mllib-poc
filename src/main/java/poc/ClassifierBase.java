@@ -49,7 +49,14 @@ import static org.elasticsearch.search.aggregations.AggregationBuilders.signific
 import static org.elasticsearch.search.aggregations.AggregationBuilders.terms;
 import static scala.collection.JavaConversions.propertiesAsScalaMap;
 
-
+/**
+ * This needs token-plugin installed: https://github.com/brwe/es-token-plugin
+ * <p/>
+ * Trains a naive bayes classifier and stores the resulting model parameters back to elasticsearch.
+ * <p/>
+ * <p/>
+ * see https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac for details on how to use
+ */
 class ClassifierBase implements Serializable {
 
 

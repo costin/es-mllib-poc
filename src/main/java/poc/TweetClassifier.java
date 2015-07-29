@@ -37,7 +37,7 @@ class TweetClassifier extends ClassifierBase {
     /**
      * This needs token-plugin installed: https://github.com/brwe/es-token-plugin
      * <p/>
-     * Trains a naive bayes classifier and stores the resulting model as a template script and indexed groovy script back to elasticsearch.
+     * Trains a naive bayes classifier and stores the resulting model parameters back to elasticsearch.
      * <p/>
      * <p/>
      * see https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac for details on how to use

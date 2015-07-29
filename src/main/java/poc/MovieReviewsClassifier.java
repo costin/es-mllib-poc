@@ -33,14 +33,7 @@ import java.util.concurrent.TimeUnit;
 
 class MovieReviewsClassifier extends ClassifierBase {
 
-    /**
-     * This needs token-plugin installed: https://github.com/brwe/es-token-plugin
-     * <p/>
-     * Trains a naive bayes classifier and stores the resulting model as a template script and indexed groovy script back to elasticsearch.
-     * <p/>
-     * <p/>
-     * see https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac for details on how to use
-     */
+
     public static void main(String[] args) throws IOException {
         Node node = null;
         Client client = null;
@@ -67,7 +60,7 @@ class MovieReviewsClassifier extends ClassifierBase {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
         System.out.println("Get descriptive terms for class positive and negative with significant terms aggregation");
-        String[] featureTerms = getSignificantTermsAsStringList(990, new JLHScore.JLHScoreBuilder(), client, "movie-reviews");
+        String[] featureTerms = getSignificantTermsAsStringList(1000, new JLHScore.JLHScoreBuilder(), client, "movie-reviews");
         trainClassifiersAndWriteModels(featureTerms, client, "movie-reviews/review", "_movies");
     }
 
