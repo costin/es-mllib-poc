@@ -76,7 +76,7 @@ class ClassifierBase implements Serializable {
     protected void trainClassifiersAndWriteModels(String[] featureTerms, Client client, String indexAndType, String modelSuffix) throws IOException {
         // get for each document a vector of tfs for the featureTerms
         JavaPairRDD<String, Map<String, Object>> esRDD = JavaEsSpark.esRDD(sc, indexAndType,
-                restRequestBody(featureTerms));
+                restRequestBody(featureTerms, true));
 
         // convert to labeled point (label + vector)
         JavaRDD<LabeledPoint> corpus = convertToLabeledPoint(esRDD, featureTerms.length);
@@ -168,9 +168,9 @@ class ClassifierBase implements Serializable {
 
                     private double[] getValues(Tuple2<String, Map<String, Object>> dataPoint) {
                         // convert ArrayList to double[]
-                        Map<String, Object> indicesAndValues = (Map) (((ArrayList)dataPoint._2().get("vector")).get(0));
+                        Map<String, Object> indicesAndValues = (Map) (((ArrayList) dataPoint._2().get("vector")).get(0));
                         ArrayList valuesList = (ArrayList) indicesAndValues.get("values");
-                        if (valuesList == null)  {
+                        if (valuesList == null) {
                             return new double[0];
                         } else {
                             double[] values = new double[valuesList.size()];
@@ -180,11 +180,12 @@ class ClassifierBase implements Serializable {
                             return values;
                         }
                     }
+
                     private int[] getIndices(Tuple2<String, Map<String, Object>> dataPoint) {
                         // convert ArrayList to int[]
-                        Map<String, Object> indicesAndValues = (Map) (((ArrayList)dataPoint._2().get("vector")).get(0));
+                        Map<String, Object> indicesAndValues = (Map) (((ArrayList) dataPoint._2().get("vector")).get(0));
                         ArrayList indicesList = (ArrayList) indicesAndValues.get("indices");
-                        if (indicesList == null)  {
+                        if (indicesList == null) {
                             return new int[0];
                         } else {
                             int[] indices = new int[indicesList.size()];
@@ -208,7 +209,7 @@ class ClassifierBase implements Serializable {
     }
 
     // request body for vector representation of documents
-    private String restRequestBody(String[] featureTerms) {
+    private String restRequestBody(String[] featureTerms, boolean fieldDataFields) {
         return "{\n" +
                 "  \"script_fields\": {\n" +
                 "    \"vector\": {\n" +
@@ -217,7 +218,8 @@ class ClassifierBase implements Serializable {
                 "      \"params\": {\n" +
                 "        \"features\": " + Arrays.toString(featureTerms) +
                 "        ,\n" +
-                "        \"field\": \"text\"\n" +
+                "        \"field\": \"text\",\n" +
+                "        \"fieldDataFields\": " + fieldDataFields + "\n" +
                 "      }\n" +
                 "    }\n" +
                 "  },\n" +
