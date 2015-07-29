@@ -17,10 +17,12 @@ wget -nc https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-1
 tar xvf elasticsearch-1.5.2.tar.gz
 # build plugin  
 
-rm -rf token-plugin/
+
 mkdir token-plugin
 cd token-plugin
 git clone https://github.com/brwe/es-token-plugin .
+git fetch
+git reset --hard origin/master
 
 mvn clean -DskipTests $2 package
 
