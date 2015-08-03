@@ -137,11 +137,14 @@ class ClassifierBase implements Serializable {
     }
 
     private XContentBuilder getParamsDocSource(SVMModel model, String[] featureTerms) throws IOException {
-        return jsonBuilder().startObject()
+
+        XContentBuilder builder = jsonBuilder().startObject()
                 .field("features", removeQuotes(featureTerms))
-                .field("weights", model.weights())
+                .field("weights", model.weights().toArray())
                 .field("intercept", model.intercept())
                 .endObject();
+        System.out.println(builder.prettyPrint().string());
+        return builder;
     }
 
     private void evaluate(JavaRDD<LabeledPoint> test, final ClassificationModel model) {
