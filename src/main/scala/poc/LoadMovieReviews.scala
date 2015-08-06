@@ -13,6 +13,7 @@ import org.elasticsearch.spark.rdd.EsSpark
  */
 object LoadMovieReviews {
   def main(args: Array[String]) = {
+
     var node = NodeBuilder.nodeBuilder().client(true).node()
     var client = node.client()
     println("deleting index movie-reviews")

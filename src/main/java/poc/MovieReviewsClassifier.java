@@ -39,6 +39,7 @@ class MovieReviewsClassifier extends ClassifierBase {
         Client client = null;
         try {
             sc = new JavaSparkContext(conf);
+
             node = NodeBuilder.nodeBuilder().client(true).settings(ImmutableSettings.builder().put("script.disable_dynamic", false)).node();
             client = node.client();
             new MovieReviewsClassifier().run(client);
@@ -60,7 +61,7 @@ class MovieReviewsClassifier extends ClassifierBase {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
         System.out.println("Get descriptive terms for class positive and negative with significant terms aggregation");
-        String[] featureTerms = getSignificantTermsAsStringList(1000, new JLHScore.JLHScoreBuilder(), client, "movie-reviews");
+        String[] featureTerms =  getAllTermsAsStringList("movie-reviews");
         trainClassifiersAndWriteModels(featureTerms, client, "movie-reviews/review", "_movies");
     }
 

@@ -41,7 +41,12 @@ import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 import scala.Serializable;
 import scala.Tuple2;
 
+import java.io.BufferedReader;
 import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
 import java.util.*;
 
 import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
@@ -143,7 +148,6 @@ class ClassifierBase implements Serializable {
                 .field("weights", model.weights().toArray())
                 .field("intercept", model.intercept())
                 .endObject();
-        System.out.println(builder.prettyPrint().string());
         return builder;
     }
 
@@ -230,6 +234,36 @@ class ClassifierBase implements Serializable {
                 "    \"label\"\n" +
                 "  ]\n" +
                 "}";
+    }
+
+
+    //
+    protected static String[] getAllTermsAsStringList(String index) {
+        String url = "http://localhost:9200/" + index + "/_allterms/text?size=10000000";
+        URLConnection connection = null;
+        try {
+            connection = new URL(url).openConnection();
+            connection.setRequestProperty("Accept-Charset", "UTF-8");
+            InputStream is = connection.getInputStream();
+            BufferedReader rd = new BufferedReader(new InputStreamReader(is), 1);
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = rd.readLine()) != null) {
+                response.append(line);
+                response.append('\r');
+            }
+            rd.close();
+            String[] terms = response.toString().split(",");
+            terms[0] = terms[0].substring(10);
+            terms[terms.length - 1] = terms[terms.length - 1].substring(0, terms[terms.length - 1].length() - 3);
+            Arrays.sort(terms);
+            return terms;
+
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        } finally {
+        }
     }
 
     //
