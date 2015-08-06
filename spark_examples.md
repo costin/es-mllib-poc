@@ -11,6 +11,7 @@ To setup data and elasticsearch and start elasticsearch, run
 This will 
 
 - download and extract the test data from http://www.cs.cornell.edu/people/pabo/movie-review-data/ (2000 movie reviews taged as "postive" or "negative")
+- - download and extract the test data http://cs.stanford.edu/people/alecmgo/trainingandtestdata.zip (about 1M tweets taged as "postive" or "negative")
 - download and extract elasticsearch 1.5.2
 - download make and install [es-token-plugin](from https://github.com/brwe/es-token-plugin)
 - install marvel
@@ -25,13 +26,13 @@ To start ide of your choice:
 ```
 
 
-To index the data run 
+To index the movie review data run 
 
 ```
 ./gradlew execute -PmainClass=poc.LoadMovieReviews
 ```
 
-or, for a bigger dataset:
+and for the tweet dataset:
 
 ```
 ./gradlew execute -PmainClass=poc.LoadTwitter
@@ -40,14 +41,14 @@ or, for a bigger dataset:
 
 # Naive Bayes and SVM for sentiment classification
 
-Run
+To train classifiers for the movie review dataset run
  
 ```
 ./gradlew execute -PmainClass=poc.MovieReviewsClassifier
 
 ```
 
-or, for the bigger dataset
+and for the tweet dataset
 
  
 ```
@@ -66,7 +67,7 @@ To apply the models to new data in elasticsearch you can run a script like this 
 
 ```
     {
-      "script": "naive_bayes_model_stored_parameters",
+      "script": "naive_bayes_model_stored_parameters_sparse_vectors",
       "lang": "native",
       "params": {
         "field": "text",
