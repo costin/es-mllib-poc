@@ -26,6 +26,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.mllib.classification.*;
 import org.apache.spark.mllib.linalg.Vectors;
+import org.apache.spark.mllib.pmml.PMMLExportable;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.storage.StorageLevel;
 import org.elasticsearch.action.ListenableActionFuture;
@@ -114,6 +115,24 @@ class ClassifierBase implements Serializable {
         doAndPrintError(client.prepareIndex("model", "params", "svm_model_params" + modelSuffix).setSource(getParamsDocSource(svmModel, featureTerms)).execute(),
                 "svm_model" + modelSuffix,
                 "could not store parameter doc");
+        client.prepareIndex("model", "pmml", "svm_model_pmml" + modelSuffix).setSource(getPMMLSource(svmModel, featureTerms)).get();
+        //System.out.println(svmModel.toPMML());
+        final LogisticRegressionModel lgModel = new LogisticRegressionWithLBFGS()
+                .setNumClasses(2)
+                .run(training.rdd());
+        evaluate(test, lgModel);
+        doAndPrintError(client.prepareIndex("model", "params", "lr_model_params" + modelSuffix).setSource(getParamsDocSource(lgModel, featureTerms)).execute(),
+                "lr_model" + modelSuffix,
+                "could not store parameter doc");
+        client.prepareIndex("model", "pmml", "lr_model_pmml" + modelSuffix).setSource(getPMMLSource(lgModel, featureTerms)).get();
+
+    }
+
+    private XContentBuilder getPMMLSource(PMMLExportable model, String[] featureTerms) throws IOException {
+        return jsonBuilder().startObject()
+                .field("pmml", model.toPMML())
+                .field("features", removeQuotes(featureTerms))
+                .endObject();
     }
 
     private void doAndPrintError(ListenableActionFuture response, String loggerName, String message) {
@@ -151,6 +170,16 @@ class ClassifierBase implements Serializable {
         return builder;
     }
 
+    private XContentBuilder getParamsDocSource(LogisticRegressionModel model, String[] featureTerms) throws IOException {
+
+        XContentBuilder builder = jsonBuilder().startObject()
+                .field("features", removeQuotes(featureTerms))
+                .field("weights", model.weights().toArray())
+                .field("intercept", model.intercept())
+                .endObject();
+        return builder;
+    }
+
     private void evaluate(JavaRDD<LabeledPoint> test, final ClassificationModel model) {
         JavaRDD predictionAndLabel = test.map(new Function<LabeledPoint, Tuple2<Double, Double>>() {
             public Tuple2<Double, Double> call(LabeledPoint s) {
@@ -162,7 +191,7 @@ class ClassifierBase implements Serializable {
                 return s._1().equals(s._2());
             }
         }).count() / test.count();
-        System.out.println("accuracy : " + accuracy);
+        System.out.println("accuracy for " + model.getClass().getName() + ": " + accuracy);
     }
 
     private JavaRDD<LabeledPoint> convertToLabeledPoint(JavaPairRDD<String, Map<String, Object>> esRDD, final int vectorLength) {
