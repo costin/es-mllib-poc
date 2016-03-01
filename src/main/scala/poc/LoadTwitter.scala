@@ -1,34 +1,38 @@
 package poc
 
+import java.net.InetAddress
+
 import org.apache.spark.{SparkConf, SparkContext}
 import org.elasticsearch.client.Requests
-import org.elasticsearch.indices.IndexMissingException
+import org.elasticsearch.client.transport.TransportClient
+import org.elasticsearch.common.transport.InetSocketTransportAddress
+import org.elasticsearch.index.IndexNotFoundException
 import org.elasticsearch.node.NodeBuilder
 import org.elasticsearch.spark.rdd.EsSpark
 
 /**
  * Indexes tweets into index sentiment140.
  * Documents look like this:
-         {
-               "label": "negative",
-               "text": "\"I am disgustingly full. I hate this feeling! \""
-         }
+  * {
+  * "label": "negative",
+  * "text": "\"I am disgustingly full. I hate this feeling! \""
+  * }
  *
  * Data is from http://help.sentiment140.com/for-students
  */
 object LoadTwitter {
   def main(args: Array[String]) = {
-    var node = NodeBuilder.nodeBuilder().client(true).node()
-    var client = node.client()
+    var client = TransportClient.builder().build()
+      .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("localhost"), 9200));
     println("deleting index sentiment140")
     try {
       client.admin().indices().prepareDelete("sentiment140").get()
     } catch {
-      case e: IndexMissingException => println("index sentiment140 does not exist")
+      case e: IndexNotFoundException => println("index sentiment140 does not exist")
     }
     client.admin().indices().prepareCreate("sentiment140").addMapping("tweets", "{\"tweets\":{\"properties\":{\"text\":{\"type\":\"string\", \"term_vector\":\"yes\"}}}}").get()
     client.admin.cluster.health(Requests.clusterHealthRequest("sentiment140").waitForGreenStatus()).actionGet()
-    node.close()
+    client.close()
     val path = if (args.length == 1) args(0) else "./data/"
 
     new LoadTwitter().indexData(path)

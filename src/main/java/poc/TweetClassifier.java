@@ -21,14 +21,17 @@ package poc;
 
 import org.apache.spark.api.java.JavaSparkContext;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.lease.Releasables;
-import org.elasticsearch.common.settings.ImmutableSettings;
+import org.elasticsearch.common.settings.Settings;
+import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.node.Node;
 import org.elasticsearch.node.NodeBuilder;
 import org.elasticsearch.search.aggregations.bucket.significant.heuristics.GND;
 import org.elasticsearch.search.aggregations.bucket.significant.heuristics.JLHScore;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
 
 
@@ -44,16 +47,14 @@ class TweetClassifier extends ClassifierBase {
      * see https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac for details on how to use
      */
     public static void main(String[] args) throws IOException {
-        Node node = null;
         Client client = null;
         try {
             sc = new JavaSparkContext(conf);
-            node = NodeBuilder.nodeBuilder().client(true).settings(ImmutableSettings.builder().put("script.disable_dynamic", false)).node();
-            client = node.client();
+            client = TransportClient.builder().build()
+                    .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("localhost"), 9300));
             new TweetClassifier().run(client);
         } finally {
             Releasables.close(client);
-            Releasables.close(node);
             if (sc != null) {
                 sc.stop();
                 // wait for jetty & spark to properly shutdown

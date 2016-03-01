@@ -1,9 +1,13 @@
 package poc
 
+import java.net.InetAddress
+
 import org.apache.spark.{SparkConf, SparkContext}
 import org.elasticsearch.client.Requests
+import org.elasticsearch.client.transport.TransportClient
+import org.elasticsearch.common.transport.InetSocketTransportAddress
 import org.elasticsearch.common.xcontent.json.JsonXContent
-import org.elasticsearch.indices.IndexMissingException
+import org.elasticsearch.index.IndexNotFoundException
 import org.elasticsearch.node.NodeBuilder
 import org.elasticsearch.spark.rdd.EsSpark
 
@@ -14,13 +18,13 @@ import org.elasticsearch.spark.rdd.EsSpark
 object LoadMovieReviews {
   def main(args: Array[String]) = {
 
-    var node = NodeBuilder.nodeBuilder().client(true).node()
-    var client = node.client()
+    var client = TransportClient.builder().build()
+      .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("localhost"), 9300));
     println("deleting index movie-reviews")
     try {
       client.admin().indices().prepareDelete("movie-reviews").get()
     } catch {
-      case e: IndexMissingException => println("index movie-reviews does not exist")
+      case e: IndexNotFoundException => println("index movie-reviews does not exist")
     }
     var mapping = JsonXContent.contentBuilder()
     mapping.startObject()
@@ -41,7 +45,7 @@ object LoadMovieReviews {
     mapping.endObject()
     client.admin().indices().prepareCreate("movie-reviews").addMapping("review", mapping).get()
     client.admin.cluster.health(Requests.clusterHealthRequest("movie-reviews").waitForGreenStatus()).actionGet()
-    node.close()
+    client.close()
     val path = if (args.length == 1) args(0) else "./data/txt_sentoken"
 
     new LoadMovieReviews().indexData(path)

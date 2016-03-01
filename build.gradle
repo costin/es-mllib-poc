@@ -19,12 +19,12 @@ repositories {
 }
 
 compileJava {
-	sourceCompatibility = 1.7
-	targetCompatibility = 1.7
+	sourceCompatibility = 1.8
+	targetCompatibility = 1.8
 }
 
-ext.esVersion="1.5.2"
-ext.ehVersion="2.1.0.BUILD-SNAPSHOT"
+ext.esVersion="2.2.0"
+ext.ehVersion="2.2.0"
 ext.scalaMajorVersion="2.10"
 ext.scalaVersion="2.10.4"
 ext.sparkVersion="1.5.2"

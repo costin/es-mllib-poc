@@ -21,13 +21,13 @@ package poc;
 
 import org.apache.spark.api.java.JavaSparkContext;
 import org.elasticsearch.client.Client;
+import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.lease.Releasables;
-import org.elasticsearch.common.settings.ImmutableSettings;
-import org.elasticsearch.node.Node;
-import org.elasticsearch.node.NodeBuilder;
+import org.elasticsearch.common.transport.InetSocketTransportAddress;
 import org.elasticsearch.search.aggregations.bucket.significant.heuristics.JLHScore;
 
 import java.io.IOException;
+import java.net.InetAddress;
 import java.util.concurrent.TimeUnit;
 
 
@@ -35,17 +35,15 @@ class MovieReviewsClassifier extends ClassifierBase {
 
 
     public static void main(String[] args) throws IOException {
-        Node node = null;
         Client client = null;
         try {
             sc = new JavaSparkContext(conf);
 
-            node = NodeBuilder.nodeBuilder().client(true).settings(ImmutableSettings.builder().put("script.disable_dynamic", false)).node();
-            client = node.client();
+            client = TransportClient.builder().build()
+                    .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("localhost"), 9300));
             new MovieReviewsClassifier().run(client);
         } finally {
             Releasables.close(client);
-            Releasables.close(node);
             if (sc != null) {
                 sc.stop();
                 // wait for jetty & spark to properly shutdown
@@ -61,7 +59,8 @@ class MovieReviewsClassifier extends ClassifierBase {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
         System.out.println("Get descriptive terms for class positive and negative with significant terms aggregation");
-        String[] featureTerms =  getAllTermsAsStringList("movie-reviews");
+       // String[] featureTerms = getAllTermsAsStringList("movie-reviews");
+        String[] featureTerms = getSignificantTermsAsStringList(10, new JLHScore.JLHScoreBuilder(), client, "movie-reviews");
         trainClassifiersAndWriteModels(featureTerms, client, "movie-reviews/review", "_movies");
     }
 

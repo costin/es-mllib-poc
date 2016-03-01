@@ -12,11 +12,23 @@ unzip -o trainingandtestdata.zip
 cd ..
 cd example-elasticsearch
 
-# Install elasticsearch 1.5.2
-wget -nc https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-1.5.2.tar.gz
-tar xvf elasticsearch-1.5.2.tar.gz
+elasticsearchversion=2.2.1-SNAPSHOT
+
+# Install elasticsearch 2.2.1 once it is out. we cannot use it now because token plugin must be based on >2.2.0 because of https://github.com/elastic/elasticsearch/pull/16822
+# wget -nc https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-2.2.1.tar.gz
+# tar xvf elasticsearch-2.2.1.tar.gz
 # build plugin  
 
+# for now we compile elasticsearch from 2.2 branch 
+mkdir elasticsearch
+cd elasticsearch
+git clone https://github.com/elastic/elasticsearch .
+git fetch
+git reset --hard origin/2.2
+mvn clean -DskipTests $2 package
+mv distribution/tar/target/releases/elasticsearch-$elasticsearchversion.tar.gz ../
+cd ..
+tar xvf elasticsearch-$elasticsearchversion.tar.gz
 
 mkdir token-plugin
 cd token-plugin
@@ -27,22 +39,28 @@ git reset --hard origin/master
 mvn clean -DskipTests $2 package
 
 currentpath=$(pwd)
-../elasticsearch-1.5.2/bin/plugin -r token_plugin
-../elasticsearch-1.5.2/bin/plugin -i token_plugin -u "file://localhost$currentpath/target/releases/es-token-plugin-0.0.0-SNAPSHOT.zip"
+../elasticsearch-$elasticsearchversion/bin/plugin remove es-token-plugin
+../elasticsearch-$elasticsearchversion/bin/plugin install "file://localhost$currentpath/target/releases/es-token-plugin-2.2.1-SNAPSHOT.zip"
 
-# install marvel because sense is so convinient
-../elasticsearch-1.5.2/bin/plugin -i elasticsearch/marvel/latest
 
 # enable dynamic scripting
-echo 'script.disable_dynamic: false' >> ../elasticsearch-1.5.2/config/elasticsearch.yml
+echo 'script.inline: on' >> ../elasticsearch-$elasticsearchversion/config/elasticsearch.yml
 
 # set reloading of file scripts lower
-echo 'watcher.interval: "10s"' >> ../elasticsearch-1.5.2/config/elasticsearch.yml
+echo 'watcher.interval: "10s"' >> ../elasticsearch-$elasticsearchversion/config/elasticsearch.yml
 
 # should work on laptop also plus I want to watch videos while aggs are computing
-echo 'threadpool.search.size: 3' >> ../elasticsearch-1.5.2/config/elasticsearch.yml
+echo 'threadpool.search.size: 3' >> ../elasticsearch-$elasticsearchversion/config/elasticsearch.yml
+
+cd ..
+
+# download kibana
+wget -nc https://download.elastic.co/kibana/kibana/kibana-4.4.1-linux-x64.tar.gz
+tar xvf kibana-4.4.1-linux-x64.tar.gz
+
+# install sense
+./kibana-4.4.1-linux-x64/bin/kibana plugin --install elastic/sense
 
 # start elasticsearch
-cd ..
-elasticsearch-1.5.2/bin/elasticsearch 
+elasticsearch-$elasticsearchversion/bin/elasticsearch 
 
