@@ -23,7 +23,7 @@ import org.elasticsearch.spark.rdd.EsSpark
 object LoadTwitter {
   def main(args: Array[String]) = {
     var client = TransportClient.builder().build()
-      .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("localhost"), 9200));
+      .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("localhost"), 9300));
     println("deleting index sentiment140")
     try {
       client.admin().indices().prepareDelete("sentiment140").get()

@@ -19,12 +19,31 @@ package poc;
  * under the License.
  */
 
+import java.io.BufferedReader;
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.List;
+import java.util.Map;
+import java.util.Properties;
+
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.mllib.classification.*;
+import org.apache.spark.mllib.classification.ClassificationModel;
+import org.apache.spark.mllib.classification.LogisticRegressionModel;
+import org.apache.spark.mllib.classification.LogisticRegressionWithLBFGS;
+import org.apache.spark.mllib.classification.NaiveBayes;
+import org.apache.spark.mllib.classification.NaiveBayesModel;
+import org.apache.spark.mllib.classification.SVMModel;
+import org.apache.spark.mllib.classification.SVMWithSGD;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.pmml.PMMLExportable;
 import org.apache.spark.mllib.regression.LabeledPoint;
@@ -39,21 +58,12 @@ import org.elasticsearch.search.aggregations.bucket.significant.SignificantTerms
 import org.elasticsearch.search.aggregations.bucket.significant.heuristics.SignificanceHeuristicBuilder;
 import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
+
+import static org.elasticsearch.common.xcontent.XContentFactory.*;
+import static org.elasticsearch.search.aggregations.AggregationBuilders.*;
+import static scala.collection.JavaConversions.*;
 import scala.Serializable;
 import scala.Tuple2;
-
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.net.URLConnection;
-import java.util.*;
-
-import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
-import static org.elasticsearch.search.aggregations.AggregationBuilders.significantTerms;
-import static org.elasticsearch.search.aggregations.AggregationBuilders.terms;
-import static scala.collection.JavaConversions.propertiesAsScalaMap;
 
 /**
  * This needs token-plugin installed: https://github.com/brwe/es-token-plugin
@@ -71,6 +81,7 @@ class ClassifierBase implements Serializable {
     static {
         ES_SPARK_CFG.setProperty("es.nodes", "localhost");
         ES_SPARK_CFG.setProperty("es.port", "9200");
+        ES_SPARK_CFG.setProperty("es.read.unmapped.fields.ignore", "false");
     }
 
     protected static final transient SparkConf conf = new SparkConf().setAll(propertiesAsScalaMap(ES_SPARK_CFG)).setMaster(
@@ -185,11 +196,13 @@ class ClassifierBase implements Serializable {
 
     private void evaluate(JavaRDD<LabeledPoint> test, final ClassificationModel model) {
         JavaRDD predictionAndLabel = test.map(new Function<LabeledPoint, Tuple2<Double, Double>>() {
+            @Override
             public Tuple2<Double, Double> call(LabeledPoint s) {
                 return new Tuple2<>(model.predict(s.features()), s.label());
             }
         });
         double accuracy = 1.0 * predictionAndLabel.filter(new Function<Tuple2<Double, Double>, Boolean>() {
+            @Override
             public Boolean call(Tuple2<Double, Double> s) {
                 return s._1().equals(s._2());
             }
@@ -200,6 +213,7 @@ class ClassifierBase implements Serializable {
     private JavaRDD<LabeledPoint> convertToLabeledPoint(JavaPairRDD<String, Map<String, Object>> esRDD, final int vectorLength) {
         JavaRDD<LabeledPoint> corpus = esRDD.map(
                 new Function<Tuple2<String, Map<String, Object>>, LabeledPoint>() {
+                    @Override
                     public LabeledPoint call(Tuple2<String, Map<String, Object>> dataPoint) {
                         Double doubleLabel = getLabel(dataPoint);
                         return new LabeledPoint(doubleLabel, Vectors.sparse(vectorLength, getIndices(dataPoint), getValues(dataPoint)));
