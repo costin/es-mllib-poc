@@ -94,7 +94,6 @@ class ClassifierBase implements Serializable {
         // get for each document a vector of tfs for the featureTerms
         JavaPairRDD<String, Map<String, Object>> esRDD = JavaEsSpark.esRDD(sc, indexAndType,
                 restRequestBody(featureTerms, true));
-        System.out.println(restRequestBody(featureTerms, true));
 
         // convert to labeled point (label + vector)
         JavaRDD<LabeledPoint> corpus = convertToLabeledPoint(esRDD, featureTerms.length);
@@ -250,7 +249,6 @@ class ClassifierBase implements Serializable {
                     }
 
                     private Double getLabel(Tuple2<String, Map<String, Object>> dataPoint) {
-                        System.out.println("doc: " + dataPoint);
                         // convert string to double label
                         String label = (String) ((ArrayList) dataPoint._2().get("label")).get(0);
                         return label.equals("positive") ? 1.0 : 0;

@@ -59,8 +59,7 @@ class MovieReviewsClassifier extends ClassifierBase {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
         System.out.println("Get descriptive terms for class positive and negative with significant terms aggregation");
-       // String[] featureTerms = getAllTermsAsStringList("movie-reviews");
-        String[] featureTerms = getSignificantTermsAsStringList(10, new JLHScore.JLHScoreBuilder(), client, "movie-reviews");
+        String[] featureTerms = getAllTermsAsStringList("movie-reviews");
         trainClassifiersAndWriteModels(featureTerms, client, "movie-reviews/review", "_movies");
     }
 
