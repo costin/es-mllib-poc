@@ -24,10 +24,10 @@ import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.lease.Releasables;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.search.aggregations.bucket.significant.heuristics.JLHScore;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 
@@ -59,7 +59,7 @@ class MovieReviewsClassifier extends ClassifierBase {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
         System.out.println("Get descriptive terms for class positive and negative with significant terms aggregation");
-        String[] featureTerms = getAllTermsAsStringList("movie-reviews");
+        Map<String, String> featureTerms = prepareAllTermsSpec("movie-reviews");
         trainClassifiersAndWriteModels(featureTerms, client, "movie-reviews/review", "_movies");
     }
 

@@ -28,7 +28,7 @@ git reset --hard origin/2.2
 mvn clean -DskipTests $2 package
 mv distribution/tar/target/releases/elasticsearch-$elasticsearchversion.tar.gz ../
 cd ..
-tar xvf elasticsearch-$elasticsearchversion.tar.gz
+tar xf elasticsearch-$elasticsearchversion.tar.gz
 
 mkdir token-plugin
 cd token-plugin
@@ -56,7 +56,7 @@ cd ..
 
 # download kibana
 wget -nc https://download.elastic.co/kibana/kibana/kibana-4.4.1-linux-x64.tar.gz
-tar xvf kibana-4.4.1-linux-x64.tar.gz
+tar xf kibana-4.4.1-linux-x64.tar.gz
 
 # install sense
 ./kibana-4.4.1-linux-x64/bin/kibana plugin --install elastic/sense

@@ -19,58 +19,43 @@ package poc;
  * under the License.
  */
 
-import java.io.BufferedReader;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.InputStreamReader;
-import java.net.URL;
-import java.net.URLConnection;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.List;
-import java.util.Map;
-import java.util.Properties;
-
 import org.apache.spark.SparkConf;
 import org.apache.spark.api.java.JavaPairRDD;
 import org.apache.spark.api.java.JavaRDD;
 import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
-import org.apache.spark.mllib.classification.ClassificationModel;
-import org.apache.spark.mllib.classification.LogisticRegressionModel;
-import org.apache.spark.mllib.classification.LogisticRegressionWithLBFGS;
-import org.apache.spark.mllib.classification.NaiveBayes;
-import org.apache.spark.mllib.classification.NaiveBayesModel;
-import org.apache.spark.mllib.classification.SVMModel;
-import org.apache.spark.mllib.classification.SVMWithSGD;
+import org.apache.spark.mllib.classification.*;
 import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.pmml.PMMLExportable;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.storage.StorageLevel;
-import org.elasticsearch.action.ListenableActionFuture;
-import org.elasticsearch.action.search.SearchResponse;
 import org.elasticsearch.client.Client;
-import org.elasticsearch.common.logging.ESLoggerFactory;
 import org.elasticsearch.common.xcontent.XContentBuilder;
-import org.elasticsearch.search.aggregations.bucket.significant.SignificantStringTerms;
-import org.elasticsearch.search.aggregations.bucket.significant.SignificantTerms;
+import org.elasticsearch.common.xcontent.XContentFactory;
+import org.elasticsearch.common.xcontent.XContentParser;
+import org.elasticsearch.common.xcontent.XContentType;
 import org.elasticsearch.search.aggregations.bucket.significant.heuristics.SignificanceHeuristicBuilder;
-import org.elasticsearch.search.aggregations.bucket.terms.Terms;
 import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
-
-import static org.elasticsearch.common.xcontent.XContentFactory.*;
-import static org.elasticsearch.search.aggregations.AggregationBuilders.*;
-import static scala.collection.JavaConversions.*;
 import scala.Serializable;
 import scala.Tuple2;
 
+import java.io.*;
+import java.net.URL;
+import java.net.URLConnection;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.Map;
+import java.util.Properties;
+
+import static org.elasticsearch.common.xcontent.XContentFactory.jsonBuilder;
+import static scala.collection.JavaConversions.propertiesAsScalaMap;
+
 /**
  * This needs token-plugin installed: https://github.com/brwe/es-token-plugin
- * <p/>
+ * <p>
  * Trains a naive bayes classifier and stores the resulting model parameters back to elasticsearch.
- * <p/>
- * <p/>
+ * <p>
+ * <p>
  * see https://gist.github.com/brwe/3cc40f8f3d6e8edc48ac for details on how to use
  */
 class ClassifierBase implements Serializable {
@@ -90,13 +75,13 @@ class ClassifierBase implements Serializable {
     protected static transient JavaSparkContext sc = null;
 
 
-    protected void trainClassifiersAndWriteModels(String[] featureTerms, Client client, String indexAndType, String modelSuffix) throws IOException {
+    protected void trainClassifiersAndWriteModels(Map<String, String> featureTerms, Client client, String indexAndType, String modelSuffix) throws IOException {
         // get for each document a vector of tfs for the featureTerms
         JavaPairRDD<String, Map<String, Object>> esRDD = JavaEsSpark.esRDD(sc, indexAndType,
-                restRequestBody(featureTerms, true));
+                restRequestBody(featureTerms));
 
         // convert to labeled point (label + vector)
-        JavaRDD<LabeledPoint> corpus = convertToLabeledPoint(esRDD, featureTerms.length);
+        JavaRDD<LabeledPoint> corpus = convertToLabeledPoint(esRDD, Integer.parseInt(featureTerms.get("length")));
 
         // Split data into training (60%) and test (40%).
         // from https://spark.apache.org/docs/1.2.1/mllib-naive-bayes.html
@@ -112,9 +97,6 @@ class ClassifierBase implements Serializable {
 
         System.out.println("write model parameters for naive bayes");
         // index parameters in separate doc
-        doAndPrintError(client.prepareIndex("model", "params", "naive_bayes_model_params" + modelSuffix).setSource(getParamsDocSource(model, featureTerms)).execute(),
-                "naive_bayes_model" + modelSuffix,
-                "could not store parameter doc");
 
         // try svm
         System.out.println("train SVM ");
@@ -123,75 +105,25 @@ class ClassifierBase implements Serializable {
 
         System.out.println("write model parameters for svm");
         // index parameters in separate doc
-        doAndPrintError(client.prepareIndex("model", "params", "svm_model_params" + modelSuffix).setSource(getParamsDocSource(svmModel, featureTerms)).execute(),
-                "svm_model" + modelSuffix,
-                "could not store parameter doc");
         client.prepareIndex("model", "pmml", "svm_model_pmml" + modelSuffix).setSource(getPMMLSource(svmModel, featureTerms)).get();
         //System.out.println(svmModel.toPMML());
         final LogisticRegressionModel lgModel = new LogisticRegressionWithLBFGS()
                 .setNumClasses(2)
                 .run(training.rdd());
         evaluate(test, lgModel);
-        doAndPrintError(client.prepareIndex("model", "params", "lr_model_params" + modelSuffix).setSource(getParamsDocSource(lgModel, featureTerms)).execute(),
-                "lr_model" + modelSuffix,
-                "could not store parameter doc");
         client.prepareIndex("model", "pmml", "lr_model_pmml" + modelSuffix).setSource(getPMMLSource(lgModel, featureTerms)).get();
 
     }
 
-    private XContentBuilder getPMMLSource(PMMLExportable model, String[] featureTerms) throws IOException {
+    private XContentBuilder getPMMLSource(PMMLExportable model, Map<String, String> spec) throws IOException {
         return jsonBuilder().startObject()
                 .field("pmml", model.toPMML())
-                .field("features", removeQuotes(featureTerms))
+                .field("spec_index", spec.get("spec_index"))
+                .field("spec_type", spec.get("spec_type"))
+                .field("spec_id", spec.get("spec_id"))
                 .endObject();
     }
 
-    private void doAndPrintError(ListenableActionFuture response, String loggerName, String message) {
-        try {
-            response.actionGet();
-        } catch (Throwable t) {
-            ESLoggerFactory.getLogger(loggerName).info(message, t);
-        }
-    }
-
-    private XContentBuilder getParamsDocSource(NaiveBayesModel model, String[] featureTerms) throws IOException {
-        return jsonBuilder().startObject()
-                .field("features", removeQuotes(featureTerms))
-                .field("pi", model.pi())
-                .field("thetas", model.theta())
-                .field("labels", model.labels())
-                .endObject();
-    }
-
-    private String[] removeQuotes(String[] featureTerms) {
-        String[] featuresWithoutQuotes = new String[featureTerms.length];
-        for (int i = 0; i < featureTerms.length; i++) {
-            featuresWithoutQuotes[i] = featureTerms[i].replace("\"", "");
-        }
-        return featuresWithoutQuotes;
-    }
-
-    private XContentBuilder getParamsDocSource(SVMModel model, String[] featureTerms) throws IOException {
-
-        XContentBuilder builder = jsonBuilder().startObject()
-                .field("features", removeQuotes(featureTerms))
-                .field("weights", model.weights().toArray())
-                .field("intercept", model.intercept())
-                .field("labels", new double[]{1,0})
-                .endObject();
-        return builder;
-    }
-
-    private XContentBuilder getParamsDocSource(LogisticRegressionModel model, String[] featureTerms) throws IOException {
-
-        XContentBuilder builder = jsonBuilder().startObject()
-                .field("features", removeQuotes(featureTerms))
-                .field("weights", model.weights().toArray())
-                .field("intercept", model.intercept())
-                .field("labels", new double[]{1,0})
-                .endObject();
-        return builder;
-    }
 
     private void evaluate(JavaRDD<LabeledPoint> test, final ClassificationModel model) {
         JavaRDD predictionAndLabel = test.map(new Function<LabeledPoint, Tuple2<Double, Double>>() {
@@ -220,7 +152,8 @@ class ClassifierBase implements Serializable {
 
                     private double[] getValues(Tuple2<String, Map<String, Object>> dataPoint) {
                         // convert ArrayList to double[]
-                        Map<String, Object> indicesAndValues = (Map) (((ArrayList) dataPoint._2().get("vector")).get(0));
+                        Map<String, Object> indicesAndValues = (Map)
+                                (((ArrayList) dataPoint._2().get("vector")).get(0));
                         ArrayList valuesList = (ArrayList) indicesAndValues.get("values");
                         if (valuesList == null) {
                             return new double[0];
@@ -261,17 +194,16 @@ class ClassifierBase implements Serializable {
     }
 
     // request body for vector representation of documents
-    private String restRequestBody(String[] featureTerms, boolean fieldDataFields) {
+    private String restRequestBody(Map<String, String> featureTerms) {
         return "{\n" +
                 "  \"script_fields\": {\n" +
                 "    \"vector\": {\n" +
-                "      \"script\": \"sparse_vector\",\n" +
+                "      \"script\": \"vector\",\n" +
                 "      \"lang\": \"native\",\n" +
                 "      \"params\": {\n" +
-                "        \"features\": " + Arrays.toString(featureTerms) +
-                "        ,\n" +
-                "        \"field\": \"text\",\n" +
-                "        \"fieldDataFields\": " + fieldDataFields + "\n" +
+                "        \"spec_index\": \"" + featureTerms.get("spec_index") + "\"," +
+                "        \"spec_type\": \"" + featureTerms.get("spec_type") + "\"," +
+                "        \"spec_id\": \"" + featureTerms.get("spec_id") + "\"" +
                 "      }\n" +
                 "    }\n" +
                 "  },\n" +
@@ -281,29 +213,34 @@ class ClassifierBase implements Serializable {
                 "}";
     }
 
-
     //
-    protected static String[] getAllTermsAsStringList(String index) {
-        String url = "http://localhost:9200/" + index + "/_allterms/text?size=10000000";
-        URLConnection connection = null;
+    protected static Map<String, String> prepareAllTermsSpec(String index) {
+        String url = "http://localhost:9200/_prepare_spec";
         try {
-            connection = new URL(url).openConnection();
+            URLConnection connection = new URL(url).openConnection();
+            connection.setDoOutput(true);
+            connection.setDoInput(true);
             connection.setRequestProperty("Accept-Charset", "UTF-8");
+            byte[] outputInBytes = getAllTermsSpecRequestBody(index).getBytes("UTF-8");
+            OutputStream os = connection.getOutputStream();
+            os.write(outputInBytes);
+            os.close();
             InputStream is = connection.getInputStream();
             BufferedReader rd = new BufferedReader(new InputStreamReader(is), 1);
             StringBuilder response = new StringBuilder();
             String line;
             while ((line = rd.readLine()) != null) {
                 response.append(line);
-                response.append('\r');
             }
             rd.close();
-            String[] terms = response.toString().split(",");
-            terms[0] = terms[0].substring(10);
-            terms[terms.length - 1] = terms[terms.length - 1].substring(0, terms[terms.length - 1].length() - 3);
-            Arrays.sort(terms);
-            return terms;
-
+            XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(response.toString());
+            Map<String, Object> params = parser.mapOrdered();
+            Map<String, String> finalParams = new HashMap<>();
+            finalParams.put("spec_index", (String) params.get("index"));
+            finalParams.put("spec_type", (String) params.get("type"));
+            finalParams.put("spec_id", (String) params.get("id"));
+            finalParams.put("length", Integer.toString((Integer) params.get("length")));
+            return finalParams;
         } catch (Exception e) {
             e.printStackTrace();
             return null;
@@ -311,24 +248,96 @@ class ClassifierBase implements Serializable {
         }
     }
 
-    //
-    protected String[] getSignificantTermsAsStringList(int numTerms, SignificanceHeuristicBuilder heuristic, Client client, String index) {
-
-        SearchResponse searchResponse = client.prepareSearch(index).addAggregation(terms("classes").field("label").subAggregation(significantTerms("features").field("text").significanceHeuristic(heuristic).size(numTerms / 2))).get();
-        List<Terms.Bucket> labelBucket = ((Terms) searchResponse.getAggregations().asMap().get("classes")).getBuckets();
-        Collection<SignificantTerms.Bucket> significantTerms = ((SignificantStringTerms) (labelBucket.get(0).getAggregations().asMap().get("features"))).getBuckets();
-        List<String> features = new ArrayList<>();
-        addFeatures(significantTerms, features);
-        significantTerms = ((SignificantStringTerms) (labelBucket.get(1).getAggregations().asMap().get("features"))).getBuckets();
-        addFeatures(significantTerms, features);
-        String[] featureTerms = features.toArray(new String[features.size()]);
-        Arrays.sort(featureTerms);
-        return featureTerms;
+    private static String getAllTermsSpecRequestBody(String index) throws IOException {
+        XContentBuilder source = jsonBuilder();
+        source.startObject()
+                .startArray("features")
+                .startObject()
+                .field("field", "text")
+                .field("tokens", "all_terms")
+                .field("index", index)
+                .field("min_doc_freq", 2)
+                .field("number", "occurence")
+                .field("type", "string")
+                .endObject()
+                .endArray()
+                .field("sparse", true)
+                .endObject();
+        return source.string();
     }
 
-    private void addFeatures(Collection<SignificantTerms.Bucket> significantTerms, List<String> featureArray) {
-        for (SignificantTerms.Bucket bucket : significantTerms) {
-            featureArray.add("\"" + bucket.getKey() + "\"");
+    //
+    protected Map<String, String> prepareSignificantTermsSpec(int numTerms, SignificanceHeuristicBuilder heuristic, Client client, String index) {
+        String url = "http://localhost:9200/_prepare_spec";
+        try {
+            URLConnection connection = new URL(url).openConnection();
+            connection.setDoOutput(true);
+            connection.setDoInput(true);
+            connection.setRequestProperty("Accept-Charset", "UTF-8");
+            byte[] outputInBytes = getSignificantTermsSpecRequestBody(index, numTerms).getBytes("UTF-8");
+            OutputStream os = connection.getOutputStream();
+            os.write(outputInBytes);
+            os.close();
+            InputStream is = connection.getInputStream();
+            BufferedReader rd = new BufferedReader(new InputStreamReader(is), 1);
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = rd.readLine()) != null) {
+                response.append(line);
+            }
+            rd.close();
+            XContentParser parser = XContentFactory.xContent(XContentType.JSON).createParser(response.toString());
+            Map<String, Object> params = parser.mapOrdered();
+            Map<String, String> finalParams = new HashMap<>();
+            finalParams.put("spec_index", (String) params.get("index"));
+            finalParams.put("spec_type", (String) params.get("type"));
+            finalParams.put("spec_id", (String) params.get("id"));
+            finalParams.put("length", Integer.toString((Integer) params.get("length")));
+            return finalParams;
+        } catch (Exception e) {
+            e.printStackTrace();
+            return null;
+        } finally {
         }
+
+    }
+
+    private String getSignificantTermsSpecRequestBody(String index, int numTerms) throws IOException {
+        XContentBuilder source = jsonBuilder();
+        XContentBuilder request = jsonBuilder();
+
+        request.startObject()
+                .startObject("aggregations")
+                .startObject("classes")
+                .startObject("terms")
+                .field("field", "label")
+                .endObject()
+                .startObject("aggregations")
+                .startObject("tokens")
+                .startObject("significant_terms")
+                .field("field", "text")
+                .field("min_doc_count", 0)
+                .field("shard_min_doc_count", 0)
+                .field("size", numTerms)
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject()
+                .endObject();
+        source.startObject()
+                .startArray("features")
+                .startObject()
+                .field("type", "string")
+                .field("field", "text")
+                .field("tokens", "significant_terms")
+                .field("request", request.string())
+                .field("index", index)
+                .field("number", "occurence")
+                .endObject()
+                .endArray()
+                .field("sparse", true)
+                .endObject();
+        return source.string();
     }
 }

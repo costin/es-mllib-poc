@@ -23,15 +23,12 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.client.transport.TransportClient;
 import org.elasticsearch.common.lease.Releasables;
-import org.elasticsearch.common.settings.Settings;
 import org.elasticsearch.common.transport.InetSocketTransportAddress;
-import org.elasticsearch.node.Node;
-import org.elasticsearch.node.NodeBuilder;
-import org.elasticsearch.search.aggregations.bucket.significant.heuristics.GND;
 import org.elasticsearch.search.aggregations.bucket.significant.heuristics.JLHScore;
 
 import java.io.IOException;
 import java.net.InetAddress;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 
@@ -70,7 +67,7 @@ class TweetClassifier extends ClassifierBase {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
         System.out.println("Get descriptive terms for class positive and negative with significant terms aggregation");
-        String[] featureTerms = getSignificantTermsAsStringList(10000, new JLHScore.JLHScoreBuilder(), client, "sentiment140");
+        Map<String, String> featureTerms = prepareSignificantTermsSpec(10000, new JLHScore.JLHScoreBuilder(), client, "sentiment140");
         trainClassifiersAndWriteModels(featureTerms, client, "sentiment140/tweets", "_tweets");
     }
 }
