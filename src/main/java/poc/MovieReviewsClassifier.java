@@ -20,30 +20,19 @@ package poc;
  */
 
 import org.apache.spark.api.java.JavaSparkContext;
-import org.elasticsearch.client.Client;
-import org.elasticsearch.client.transport.TransportClient;
-import org.elasticsearch.common.lease.Releasables;
-import org.elasticsearch.common.transport.InetSocketTransportAddress;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
 
 
 class MovieReviewsClassifier extends ClassifierBase {
 
-
     public static void main(String[] args) throws IOException {
-        Client client = null;
         try {
             sc = new JavaSparkContext(conf);
-
-            client = TransportClient.builder().build()
-                    .addTransportAddress(new InetSocketTransportAddress(InetAddress.getByName("localhost"), 9300));
-            new MovieReviewsClassifier().run(client);
+            new MovieReviewsClassifier().run();
         } finally {
-            Releasables.close(client);
             if (sc != null) {
                 sc.stop();
                 // wait for jetty & spark to properly shutdown
@@ -55,12 +44,12 @@ class MovieReviewsClassifier extends ClassifierBase {
         }
     }
 
-    public void run(Client client) throws IOException {
+    public void run() throws IOException {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
         System.out.println("Get descriptive terms for class positive and negative with significant terms aggregation");
-        Map<String, String> featureTerms = prepareAllTermsSpec("movie-reviews");
-        trainClassifiersAndWriteModels(featureTerms, client, "movie-reviews/review", "_movies");
+        Map<String, String> spec = prepareAllTermsSpec("movie-reviews");
+        trainClassifiersAndWriteModels(spec, "movie-reviews/review", "_movies");
     }
 
 }

@@ -47,7 +47,12 @@ class LoadTwitter extends Serializable {
     try {
       val csv = sc.textFile(path + "training.1600000.processed.noemoticon.csv")
       val rows = csv.map(line => line.split(",").map(_.trim)).map(line =>
+        try {
         Opinion(if (line.apply(0).equals("\"4\"")) "positive" else "negative", line.apply(5))
+        } catch {
+          case e: ArrayIndexOutOfBoundsException => println("a weird line:" + line.apply(0) + line.apply(1) + line.apply(2) + line.apply(3) + line.apply(4))
+            Opinion(if (line.apply(0).equals("\"4\"")) "positive" else "negative", "")
+        }
       )
       EsSpark.saveToEs(rows, "sentiment140/tweets")
 

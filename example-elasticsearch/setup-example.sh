@@ -45,6 +45,7 @@ currentpath=$(pwd)
 
 # enable dynamic scripting
 echo 'script.inline: on' >> ../elasticsearch-$elasticsearchversion/config/elasticsearch.yml
+echo 'script.indexed: on' >> ../elasticsearch-$elasticsearchversion/config/elasticsearch.yml
 
 # set reloading of file scripts lower
 echo 'watcher.interval: "10s"' >> ../elasticsearch-$elasticsearchversion/config/elasticsearch.yml

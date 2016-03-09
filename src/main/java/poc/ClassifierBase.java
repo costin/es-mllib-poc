@@ -29,11 +29,13 @@ import org.apache.spark.mllib.linalg.Vectors;
 import org.apache.spark.mllib.pmml.PMMLExportable;
 import org.apache.spark.mllib.regression.LabeledPoint;
 import org.apache.spark.storage.StorageLevel;
+import org.apache.spark.util.SystemClock;
 import org.elasticsearch.client.Client;
 import org.elasticsearch.common.xcontent.XContentBuilder;
 import org.elasticsearch.common.xcontent.XContentFactory;
 import org.elasticsearch.common.xcontent.XContentParser;
 import org.elasticsearch.common.xcontent.XContentType;
+import org.elasticsearch.hadoop.cfg.ConfigurationOptions;
 import org.elasticsearch.search.aggregations.bucket.significant.heuristics.SignificanceHeuristicBuilder;
 import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 import scala.Serializable;
@@ -64,9 +66,11 @@ class ClassifierBase implements Serializable {
     protected static final Properties ES_SPARK_CFG = new Properties();
 
     static {
-        ES_SPARK_CFG.setProperty("es.nodes", "localhost");
-        ES_SPARK_CFG.setProperty("es.port", "9200");
-        ES_SPARK_CFG.setProperty("es.read.unmapped.fields.ignore", "false");
+        ES_SPARK_CFG.setProperty(ConfigurationOptions.ES_NODES, "localhost");
+        ES_SPARK_CFG.setProperty(ConfigurationOptions.ES_PORT, "9200");
+        ES_SPARK_CFG.setProperty(ConfigurationOptions.ES_READ_UNMAPPED_FIELDS_IGNORE, "false");
+        ES_SPARK_CFG.setProperty(ConfigurationOptions.ES_SCROLL_SIZE, "10000");
+        ES_SPARK_CFG.setProperty(ConfigurationOptions.ES_HTTP_TIMEOUT_DEFAULT, "10m");
     }
 
     protected static final transient SparkConf conf = new SparkConf().setAll(propertiesAsScalaMap(ES_SPARK_CFG)).setMaster(
@@ -75,13 +79,13 @@ class ClassifierBase implements Serializable {
     protected static transient JavaSparkContext sc = null;
 
 
-    protected void trainClassifiersAndWriteModels(Map<String, String> featureTerms, Client client, String indexAndType, String modelSuffix) throws IOException {
+    protected void trainClassifiersAndWriteModels(Map<String, String> spec, String indexAndType, String modelSuffix) throws IOException {
         // get for each document a vector of tfs for the featureTerms
         JavaPairRDD<String, Map<String, Object>> esRDD = JavaEsSpark.esRDD(sc, indexAndType,
-                restRequestBody(featureTerms));
+                restRequestBody(spec));
 
         // convert to labeled point (label + vector)
-        JavaRDD<LabeledPoint> corpus = convertToLabeledPoint(esRDD, Integer.parseInt(featureTerms.get("length")));
+        JavaRDD<LabeledPoint> corpus = convertToLabeledPoint(esRDD, Integer.parseInt(spec.get("length")));
 
         // Split data into training (60%) and test (40%).
         // from https://spark.apache.org/docs/1.2.1/mllib-naive-bayes.html
@@ -105,23 +109,44 @@ class ClassifierBase implements Serializable {
 
         System.out.println("write model parameters for svm");
         // index parameters in separate doc
-        client.prepareIndex("model", "pmml", "svm_model_pmml" + modelSuffix).setSource(getPMMLSource(svmModel, featureTerms)).get();
+        storePMMLModel(spec, svmModel, "svm" + modelSuffix);
         //System.out.println(svmModel.toPMML());
         final LogisticRegressionModel lgModel = new LogisticRegressionWithLBFGS()
                 .setNumClasses(2)
                 .run(training.rdd());
         evaluate(test, lgModel);
-        client.prepareIndex("model", "pmml", "lr_model_pmml" + modelSuffix).setSource(getPMMLSource(lgModel, featureTerms)).get();
+        storePMMLModel(spec, lgModel, "lr" + modelSuffix);
 
     }
 
-    private XContentBuilder getPMMLSource(PMMLExportable model, Map<String, String> spec) throws IOException {
-        return jsonBuilder().startObject()
-                .field("pmml", model.toPMML())
-                .field("spec_index", spec.get("spec_index"))
-                .field("spec_type", spec.get("spec_type"))
-                .field("spec_id", spec.get("spec_id"))
-                .endObject();
+    private void storePMMLModel(Map<String, String> spec, PMMLExportable model, String id) {
+        String url = "http://localhost:9200/_store_model?spec_id=" + spec.get("spec_id") + "&id=" + id;
+        try {
+            URLConnection connection = new URL(url).openConnection();
+            connection.setDoOutput(true);
+            connection.setDoInput(true);
+            connection.setRequestProperty("Accept-Charset", "UTF-8");
+            XContentBuilder sourceBuilder = jsonBuilder();
+            sourceBuilder.startObject()
+                    .field("model", model.toPMML())
+                    .endObject();
+            byte[] outputInBytes = sourceBuilder.bytes().toBytes();
+            OutputStream os = connection.getOutputStream();
+            os.write(outputInBytes);
+            os.close();
+            InputStream is = connection.getInputStream();
+            BufferedReader rd = new BufferedReader(new InputStreamReader(is), 1);
+            StringBuilder response = new StringBuilder();
+            String line;
+            while ((line = rd.readLine()) != null) {
+                response.append(line);
+            }
+            rd.close();
+            System.out.println("Response for storing model: " + response.toString());
+        } catch (Exception e) {
+            e.printStackTrace();
+        } finally {
+        }
     }
 
 
@@ -194,23 +219,20 @@ class ClassifierBase implements Serializable {
     }
 
     // request body for vector representation of documents
-    private String restRequestBody(Map<String, String> featureTerms) {
-        return "{\n" +
-                "  \"script_fields\": {\n" +
-                "    \"vector\": {\n" +
-                "      \"script\": \"vector\",\n" +
-                "      \"lang\": \"native\",\n" +
-                "      \"params\": {\n" +
-                "        \"spec_index\": \"" + featureTerms.get("spec_index") + "\"," +
-                "        \"spec_type\": \"" + featureTerms.get("spec_type") + "\"," +
-                "        \"spec_id\": \"" + featureTerms.get("spec_id") + "\"" +
-                "      }\n" +
-                "    }\n" +
-                "  },\n" +
-                "  \"fields\": [\n" +
-                "    \"label\"\n" +
-                "  ]\n" +
-                "}";
+    private String restRequestBody(Map<String, String> featureTerms) throws IOException {
+        XContentBuilder builder = jsonBuilder();
+        builder.startObject()
+                .startObject("script_fields")
+                .startObject("vector")
+                .startObject("script")
+                .field("id", featureTerms.get("spec_id"))
+                .field("lang", "pmml_vector")
+                .endObject()
+                .endObject()
+                .endObject()
+                .field("fields", new String[]{"label"})
+                .endObject();
+        return builder.string();
     }
 
     //
@@ -267,14 +289,14 @@ class ClassifierBase implements Serializable {
     }
 
     //
-    protected Map<String, String> prepareSignificantTermsSpec(int numTerms, SignificanceHeuristicBuilder heuristic, Client client, String index) {
+    protected Map<String, String> prepareSignificantTermsSpec(int numTerms, String index, String id) {
         String url = "http://localhost:9200/_prepare_spec";
         try {
             URLConnection connection = new URL(url).openConnection();
             connection.setDoOutput(true);
             connection.setDoInput(true);
             connection.setRequestProperty("Accept-Charset", "UTF-8");
-            byte[] outputInBytes = getSignificantTermsSpecRequestBody(index, numTerms).getBytes("UTF-8");
+            byte[] outputInBytes = getSignificantTermsSpecRequestBody(index, numTerms, id).getBytes("UTF-8");
             OutputStream os = connection.getOutputStream();
             os.write(outputInBytes);
             os.close();
@@ -302,7 +324,7 @@ class ClassifierBase implements Serializable {
 
     }
 
-    private String getSignificantTermsSpecRequestBody(String index, int numTerms) throws IOException {
+    private String getSignificantTermsSpecRequestBody(String index, int numTerms, String id) throws IOException {
         XContentBuilder source = jsonBuilder();
         XContentBuilder request = jsonBuilder();
 
@@ -337,6 +359,7 @@ class ClassifierBase implements Serializable {
                 .endObject()
                 .endArray()
                 .field("sparse", true)
+                .field("id", id)
                 .endObject();
         return source.string();
     }
