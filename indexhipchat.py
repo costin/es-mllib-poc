@@ -6,7 +6,7 @@ import os
 def index_hipchat():
     c = 0;
     es = elasticsearch.Elasticsearch()
-    for r,d,f in os.walk('/Users/britta/Downloads/hipchat_export/rooms'):
+    for r,d,f in os.walk('./data/hipchat_export/rooms'):
         for afile in f:
             if afile[-4:] == 'json':
                 index(os.path.join(r,afile), es)
@@ -16,7 +16,10 @@ def index_hipchat():
 import json, requests, pprint, random, math, operator, datetime, sys, optparse, time, elasticsearch
 def create_index():
     es = elasticsearch.Elasticsearch()
-    es.indices.delete("hipchat")
+    try:
+       es.indices.delete("hipchat")
+    except elasticsearch.exceptions.NotFoundError:
+       print "index hipchat does not exist"
     mapping = {
           "mappings": {
             "_default_": {
@@ -24,6 +27,10 @@ def create_index():
                 "message": {
                   "type": "string",
                   "term_vector": "yes"
+                },
+                "room": {
+                  "type": "string",
+                  "analyzer": "keyword"
                 },
                 "from": {
                   "properties": {
@@ -59,8 +66,11 @@ def index(filename, es):
         docs = docs.replace('\n',' ')
         for doc in json.loads(docs):
             try :
-                es.index(body = json.dumps(doc), index = "hipchat", doc_type = room)
+                doc["text"] = doc["message"]
+                doc["room"] = room
+                es.index(body = json.dumps(doc), index = "hipchat", doc_type = "message")
             except  :
+                print "indexing failed"
                 pass
                 
     except ValueError:
