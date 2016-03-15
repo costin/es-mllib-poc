@@ -290,7 +290,7 @@ class ClassifierBase implements Serializable {
 
     //
     protected Map<String, String> prepareSignificantTermsSpec(int numTerms, String index, String id) {
-        String url = "http://localhost:9200/_prepare_spec";
+        String url = "http://localhost:9200/_prepare_spec?id=" + id;
         try {
             URLConnection connection = new URL(url).openConnection();
             connection.setDoOutput(true);
@@ -359,7 +359,6 @@ class ClassifierBase implements Serializable {
                 .endObject()
                 .endArray()
                 .field("sparse", true)
-                .field("id", id)
                 .endObject();
         return source.string();
     }
