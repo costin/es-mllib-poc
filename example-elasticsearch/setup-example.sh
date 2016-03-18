@@ -12,22 +12,22 @@ unzip -o trainingandtestdata.zip
 cd ..
 cd example-elasticsearch
 
-elasticsearchversion=2.2.1-SNAPSHOT
+elasticsearchversion=2.2.1
 
 # Install elasticsearch 2.2.1 once it is out. we cannot use it now because token plugin must be based on >2.2.0 because of https://github.com/elastic/elasticsearch/pull/16822
-# wget -nc https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-2.2.1.tar.gz
-# tar xvf elasticsearch-2.2.1.tar.gz
+wget -nc https://download.elastic.co/elasticsearch/elasticsearch/elasticsearch-2.2.1.tar.gz
+tar xvf elasticsearch-2.2.1.tar.gz
 # build plugin  
 
 # for now we compile elasticsearch from 2.2 branch 
-mkdir elasticsearch
-cd elasticsearch
-git clone https://github.com/elastic/elasticsearch .
-git fetch
-git reset --hard origin/2.2
-mvn clean -DskipTests $2 package
-mv distribution/tar/target/releases/elasticsearch-$elasticsearchversion.tar.gz ../
-cd ..
+#mkdir elasticsearch
+#cd elasticsearch
+#git clone https://github.com/elastic/elasticsearch .
+#git fetch
+#git reset --hard origin/2.2
+#mvn clean -DskipTests $2 package
+#mv distribution/tar/target/releases/elasticsearch-$elasticsearchversion.tar.gz ../
+#cd ..
 tar xf elasticsearch-$elasticsearchversion.tar.gz
 
 mkdir token-plugin
@@ -40,7 +40,7 @@ mvn clean -DskipTests $2 package
 
 currentpath=$(pwd)
 ../elasticsearch-$elasticsearchversion/bin/plugin remove es-token-plugin
-../elasticsearch-$elasticsearchversion/bin/plugin install "file://localhost$currentpath/target/releases/es-token-plugin-2.2.1-SNAPSHOT.zip"
+../elasticsearch-$elasticsearchversion/bin/plugin install "file://localhost$currentpath/target/releases/es-token-plugin-$elasticsearchversion.zip"
 
 
 # enable dynamic scripting
