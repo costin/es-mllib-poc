@@ -9,6 +9,12 @@ tar xf review_polarity.tar.gz
 wget -nc http://cs.stanford.edu/people/alecmgo/trainingandtestdata.zip .
 unzip -o trainingandtestdata.zip
 
+# from http://ai.stanford.edu/~amaas/data/sentiment/
+wget -nc http://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz
+tar xvf aclImdb_v1.tar.gz
+
+
+
 cd ..
 cd example-elasticsearch
 

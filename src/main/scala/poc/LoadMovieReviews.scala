@@ -49,6 +49,8 @@ object LoadMovieReviews {
     val path = if (args.length == 1) args(0) else "./data/txt_sentoken"
 
     new LoadMovieReviews().indexData(path)
+    new LoadMovieReviews().indexData("./data/aclImdb/train/")
+    new LoadMovieReviews().indexData("./data/aclImdb/test/")
   }
 }
 
