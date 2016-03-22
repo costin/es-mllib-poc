@@ -24,6 +24,7 @@ import org.apache.spark.api.java.JavaSparkContext;
 import org.apache.spark.api.java.function.Function;
 import org.apache.spark.mllib.feature.Word2Vec;
 import org.apache.spark.mllib.feature.Word2VecModel;
+import org.elasticsearch.hadoop.cfg.ConfigurationOptions;
 import org.elasticsearch.spark.rdd.api.java.JavaEsSpark;
 import org.junit.AfterClass;
 import org.junit.BeforeClass;
@@ -48,10 +49,12 @@ public class SynonymsWithWord2Vec implements Serializable {
     static {
         ES_SPARK_CFG.setProperty("es.nodes", "localhost");
         ES_SPARK_CFG.setProperty("es.port", "9200");
+        ES_SPARK_CFG.setProperty(ConfigurationOptions.ES_READ_UNMAPPED_FIELDS_IGNORE, "false");
+        ES_SPARK_CFG.setProperty(ConfigurationOptions.ES_SCROLL_SIZE, "10000");
     }
 
     private static final transient SparkConf conf = new SparkConf().setAll(propertiesAsScalaMap(ES_SPARK_CFG)).setMaster(
-            "local").setAppName("estest");
+            "local[5]").setAppName("estest");
     private static transient JavaSparkContext sc = null;
 
     @BeforeClass
@@ -100,6 +103,8 @@ public class SynonymsWithWord2Vec implements Serializable {
         System.out.println(corpus.take(2));
         // learn the word vectors
         Word2Vec vectorModel = new Word2Vec();
+        vectorModel.setNumPartitions(1);
+        vectorModel.setNumIterations(1);
         Word2VecModel model = vectorModel.fit(corpus);
         // find an example synonym and print it
         Tuple2<String, Object>[] synonyms = model.findSynonyms("action", 10);
