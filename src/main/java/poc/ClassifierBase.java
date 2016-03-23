@@ -236,8 +236,8 @@ class ClassifierBase implements Serializable {
     }
 
     //
-    protected static Map<String, String> prepareAllTermsSpec(String index) {
-        String url = "http://localhost:9200/_prepare_spec";
+    protected static Map<String, String> prepareAllTermsSpec(String index, String id) {
+        String url = "http://localhost:9200/_prepare_spec?id=" + id;
         try {
             URLConnection connection = new URL(url).openConnection();
             connection.setDoOutput(true);

@@ -48,7 +48,7 @@ class MovieReviewsClassifier extends ClassifierBase {
         // use significant terms to get a list of features
         // for example: "bad, worst, ridiculous" for class positive and "awesome, great, wonderful" for class positive
         System.out.println("Get descriptive terms for class positive and negative with significant terms aggregation");
-        Map<String, String> spec = prepareAllTermsSpec("movie-reviews");
+        Map<String, String> spec = prepareAllTermsSpec("movie-reviews", "movie_reviews_spec");
         trainClassifiersAndWriteModels(spec, "movie-reviews/review", "_movies");
     }
 

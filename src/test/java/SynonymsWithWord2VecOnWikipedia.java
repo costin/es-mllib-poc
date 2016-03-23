@@ -52,7 +52,9 @@ public class SynonymsWithWord2VecOnWikipedia implements Serializable {
         ES_SPARK_CFG.setProperty("es.port", "9200");
         ES_SPARK_CFG.setProperty(ConfigurationOptions.ES_READ_UNMAPPED_FIELDS_IGNORE, "false");
         ES_SPARK_CFG.setProperty(ConfigurationOptions.ES_SCROLL_SIZE, "1000");
-        ES_SPARK_CFG.setProperty("spark.driver.maxResultSize", "20g");
+        ES_SPARK_CFG.setProperty("spark.driver.maxResultSize", "32g");
+        ES_SPARK_CFG.setProperty("spark.memory.fraction", "1");
+
     }
 
     private static final transient SparkConf conf = new SparkConf().setAll(propertiesAsScalaMap(ES_SPARK_CFG)).setMaster(
