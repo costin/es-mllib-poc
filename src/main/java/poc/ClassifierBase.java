@@ -226,7 +226,7 @@ class ClassifierBase implements Serializable {
                 .startObject("vector")
                 .startObject("script")
                 .field("id", featureTerms.get("spec_id"))
-                .field("lang", "pmml_vector")
+                .field("lang", "doc_to_vector")
                 .endObject()
                 .endObject()
                 .endObject()
