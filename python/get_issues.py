@@ -1,7 +1,7 @@
 import elasticsearch,urllib2,json, datetime, time
 
 
-for i in range(17082,20000):
+for i in range(0,20000):
     token = HERE BE A TOKEN, see https://help.github.com/articles/creating-an-access-token-for-command-line-use/
     try:
        issue_response = urllib2.urlopen('https://api.github.com/repos/elastic/elasticsearch/issues/' + str(i)+'?access_token='+token)
