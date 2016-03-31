@@ -6,7 +6,7 @@ import os
 def index_hipchat():
     c = 0;
     es = elasticsearch.Elasticsearch()
-    for r,d,f in os.walk('./data/hipchat_export/rooms'):
+    for r,d,f in os.walk('../data/hipchat_export/rooms'):
         for afile in f:
             if afile[-4:] == 'json':
                 index(os.path.join(r,afile), es)
