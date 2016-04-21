@@ -1,0 +1,7 @@
+/Users/britta/poc/knime/output/svm_rbf
+/Users/britta/poc/knime/output/svm_lbf
+/Users/britta/svm_test
+/Users/britta/logistic_regression_test
+/Users/britta/naive_bayes_test
+test_naive_bayes_pmml
+/Users/britta/test_knime

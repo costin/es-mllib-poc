@@ -1,0 +1,305 @@
+
+{
+    "version":"3.1.2.v201603311235",
+    "created":"2016-04-18 18:13",
+    "nodestats":{
+        "nodes":[
+            {
+                "id":"org.knime.base.node.io.filereader.FileReaderNodeFactory#File Reader",
+                "nrexecs":7,
+                "exectime":5201,
+                "nrcreated":2,
+                "successor":"org.knime.base.node.preproc.pmml.missingval.compute.MissingValueHandlerNodeFactory#Missing Value"
+            },
+            {
+                "id":"org.knime.base.node.mine.cluster.kmeans.ClusterNodeFactory2#k-Means",
+                "nrexecs":8,
+                "exectime":593,
+                "nrcreated":1,
+                "successor":"org.knime.base.node.pmml.modelappender.PMMLModelAppenderNodeFactory#PMML Model Appender"
+            },
+            {
+                "id":"org.knime.base.node.viz.property.color.ColorManager2NodeFactory#Color Manager",
+                "nrexecs":5,
+                "exectime":4,
+                "nrcreated":1,
+                "successor":"org.knime.base.node.viz.plotter.scatter.ScatterPlotterNodeFactory#Scatter Plot"
+            },
+            {
+                "id":"org.knime.base.node.viz.table.TableNodeFactory#Interactive Table",
+                "nrexecs":21,
+                "exectime":65,
+                "nrcreated":2,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.viz.plotter.scatter.ScatterPlotterNodeFactory#Scatter Plot",
+                "nrexecs":5,
+                "exectime":24,
+                "nrcreated":1,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.io.pmml.write.PMMLWriterNodeFactory#PMML Writer",
+                "nrexecs":19,
+                "exectime":9917,
+                "nrcreated":3,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.preproc.normalize3.Normalizer3NodeFactory#Normalizer",
+                "nrexecs":1,
+                "exectime":46,
+                "nrcreated":1,
+                "successor":"org.knime.base.node.mine.cluster.kmeans.ClusterNodeFactory2#k-Means"
+            },
+            {
+                "id":"org.knime.base.node.preproc.pmml.normalize.NormalizerPMMLNodeFactory2#Normalizer (PMML)",
+                "nrexecs":12,
+                "exectime":28351,
+                "nrcreated":6,
+                "successor":"org.knime.base.node.viz.table.TableNodeFactory#Interactive Table"
+            },
+            {
+                "id":"org.knime.base.node.pmml.transappender.PMMLTransformationsAppenderNodeFactory#PMML Transformation Appender",
+                "nrexecs":9,
+                "exectime":1378,
+                "nrcreated":5,
+                "successor":"org.knime.base.node.pmml.modelappender.PMMLModelAppenderNodeFactory#PMML Model Appender"
+            },
+            {
+                "id":"org.knime.base.node.pmml.modelappender.PMMLModelAppenderNodeFactory#PMML Model Appender",
+                "nrexecs":12,
+                "exectime":23370,
+                "nrcreated":2,
+                "successor":"org.knime.base.node.io.pmml.write.PMMLWriterNodeFactory#PMML Writer"
+            },
+            {
+                "id":"org.knime.base.node.mine.pca.PCANodeFactory#PCA",
+                "nrexecs":2,
+                "exectime":117,
+                "nrcreated":1,
+                "successor":"org.knime.base.node.mine.pca.PCAApplyNodeFactory#PCA Apply"
+            },
+            {
+                "id":"org.knime.base.node.mine.pca.PCAApplyNodeFactory#PCA Apply",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":2,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.mine.pca.PCAComputeNodeFactory#PCA Compute",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":2,
+                "successor":"org.knime.ensembles.tabletopmmlport.TableToPMMLNodeFactory#Cell To PMML"
+            },
+            {
+                "id":"org.knime.ensembles.tabletopmmlport.TableToPMMLNodeFactory#Cell To PMML",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":1,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.pmml.createempty.EmptyPMMLCreatorNodeFactory#Empty PMML Creator",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":1,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.mine.bayes.naivebayes.predictor3.NaiveBayesPredictorNodeFactory2#Naive Bayes Predictor",
+                "nrexecs":3,
+                "exectime":2631,
+                "nrcreated":3,
+                "successor":"org.knime.base.node.mine.scorer.accuracy.AccuracyScorerNodeFactory#Scorer"
+            },
+            {
+                "id":"org.knime.base.node.preproc.columntrans2.Many2OneCol2NodeFactory#Many to One",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":1,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.preproc.pmml.columntrans2.Many2OneCol2PMMLNodeFactory2#Many to One (PMML)",
+                "nrexecs":1,
+                "exectime":35,
+                "nrcreated":1,
+                "successor":"org.knime.base.node.preproc.pmml.normalize.NormalizerPMMLNodeFactory2#Normalizer (PMML)"
+            },
+            {
+                "id":"org.knime.base.node.preproc.pmml.stringtonumber.StringToNumberNodeFactory2#String To Number (PMML)",
+                "nrexecs":2,
+                "exectime":37,
+                "nrcreated":2,
+                "successor":"org.knime.base.node.preproc.pmml.normalize.NormalizerPMMLNodeFactory2#Normalizer (PMML)"
+            },
+            {
+                "id":"org.knime.base.node.preproc.pmml.missingval.compute.MissingValueHandlerNodeFactory#Missing Value",
+                "nrexecs":10,
+                "exectime":6176,
+                "nrcreated":2,
+                "successor":"org.knime.base.node.preproc.domain.dialog2.DomainNodeFactory#Domain Calculator"
+            },
+            {
+                "id":"org.knime.base.node.preproc.pmml.columntrans2.One2ManyCol2PMMLNodeFactory2#One to Many (PMML)",
+                "nrexecs":7,
+                "exectime":13229,
+                "nrcreated":2,
+                "successor":"org.knime.base.node.preproc.pmml.normalize.NormalizerPMMLNodeFactory2#Normalizer (PMML)"
+            },
+            {
+                "id":"org.knime.base.node.preproc.pmml.columnfilter.DataColumnSpecFilterPMMLNodeFactory#Column Filter (PMML)",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":1,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.ext.weka37.classifier.WekaClassifierNodeFactory#NaiveBayes (3.7)",
+                "nrexecs":2,
+                "exectime":1524,
+                "nrcreated":1,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.mine.regression.logistic.learner3.LogRegLearnerNodeFactory3#Logistic Regression Learner",
+                "nrexecs":4,
+                "exectime":143683,
+                "nrcreated":3,
+                "successor":"org.knime.base.node.mine.regression.predict2.RegressionPredictorNodeFactory#Regression Predictor"
+            },
+            {
+                "id":"org.knime.ext.weka37.classifier.WekaClassifierNodeFactory#NaiveBayesSimple (3.7)",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":1,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.ext.weka37.classifier.WekaClassifierNodeFactory#NaiveBayesMultinomial (3.7)",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":1,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.mine.bayes.naivebayes.learner2.NaiveBayesLearnerNodeFactory3#Naive Bayes Learner",
+                "nrexecs":6,
+                "exectime":2632,
+                "nrcreated":1,
+                "successor":"org.knime.base.node.mine.bayes.naivebayes.predictor3.NaiveBayesPredictorNodeFactory2#Naive Bayes Predictor"
+            },
+            {
+                "id":"org.knime.base.node.mine.svm.learner.SVMLearnerNodeFactory2#SVM Learner",
+                "nrexecs":5,
+                "exectime":38386929,
+                "nrcreated":3,
+                "successor":"org.knime.base.node.mine.svm.predictor2.SVMPredictorNodeFactory#SVM Predictor"
+            },
+            {
+                "id":"org.knime.base.node.mine.scorer.accuracy.AccuracyScorerNodeFactory#Scorer",
+                "nrexecs":9,
+                "exectime":5181,
+                "nrcreated":1,
+                "successor":"org.knime.base.node.viz.table.TableNodeFactory#Interactive Table"
+            },
+            {
+                "id":"org.knime.base.node.io.table.read.ReadTableNodeFactory#Table Reader",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":1,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.mine.regression.predict2.RegressionPredictorNodeFactory#Regression Predictor",
+                "nrexecs":1,
+                "exectime":2019,
+                "nrcreated":1,
+                "successor":"org.knime.base.node.mine.scorer.accuracy.AccuracyScorerNodeFactory#Scorer"
+            },
+            {
+                "id":"org.knime.base.node.mine.svm.predictor2.SVMPredictorNodeFactory#SVM Predictor",
+                "nrexecs":6,
+                "exectime":1180018,
+                "nrcreated":1,
+                "successor":"org.knime.base.node.mine.scorer.accuracy.AccuracyScorerNodeFactory#Scorer"
+            },
+            {
+                "id":"org.knime.base.node.preproc.domain.dialog2.DomainNodeFactory#Domain Calculator",
+                "nrexecs":1,
+                "exectime":414,
+                "nrcreated":2,
+                "successor":"org.knime.base.node.viz.table.TableNodeFactory#Interactive Table"
+            },
+            {
+                "id":"org.knime.base.node.preproc.partition.PartitionNodeFactory#Partitioning",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":1,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.preproc.colconvert.categorytonumber2.CategoryToNumberNodeFactory2#Category To Number",
+                "nrexecs":1,
+                "exectime":1053,
+                "nrcreated":1,
+                "successor":"org.knime.base.node.viz.table.TableNodeFactory#Interactive Table"
+            },
+            {
+                "id":"org.knime.datageneration.onerowtoman.OneRowToManyNodeFactory#One Row to Many",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":1,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.preproc.binnerdictionary.BinByDictionaryNodeFactory#Binner (Dictionary)",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":1,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.preproc.columntrans2.One2ManyCol2NodeFactory#One to Many",
+                "nrexecs":1,
+                "exectime":4564,
+                "nrcreated":1,
+                "successor":"org.knime.base.node.viz.table.TableNodeFactory#Interactive Table"
+            },
+            {
+                "id":"org.knime.base.node.preproc.pmml.normalize.NormalizerPMMLApplyNodeFactory#Normalizer Apply (PMML)",
+                "nrexecs":5,
+                "exectime":12598,
+                "nrcreated":3,
+                "successor":"org.knime.base.node.mine.svm.predictor2.SVMPredictorNodeFactory#SVM Predictor"
+            },
+            {
+                "id":"org.knime.base.node.preproc.filter.column.DataColumnSpecFilterNodeFactory#Column Filter",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":1,
+                "successor":"n/a"
+            },
+            {
+                "id":"org.knime.base.node.preproc.columnappend.ColumnAppenderNodeFactory#Column Appender",
+                "nrexecs":0,
+                "exectime":0,
+                "nrcreated":1,
+                "successor":"n/a"
+            }
+        ],
+        "metaNodes":{
+        },
+        "wrappedNodes":{
+        }
+    },
+    "uptime":58565831,
+    "launches":4,
+    "timeSinceLastStart":122748,
+    "crashes":1,
+    "properlyShutDown":false
+}

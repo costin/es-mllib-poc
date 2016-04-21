@@ -1,0 +1,4 @@
+file:/Users/britta/poc/data/adult/adult.data
+knime://knime.workflow/data.all
+file:/Users/britta/poc/data/adult/adult.test
+file:/Users/britta/Downloads/datasets/iris/data.all
