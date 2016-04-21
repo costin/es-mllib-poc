@@ -13,6 +13,11 @@ unzip -o trainingandtestdata.zip
 wget -nc http://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz
 tar xvf aclImdb_v1.tar.gz
 
+# get the adult income prdiction dataset from http://archive.ics.uci.edu/ml/datasets/Adult
+mkdir adult_income
+cd adult_income
+wget -nc http://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data
+cd ..
 
 
 cd ..
