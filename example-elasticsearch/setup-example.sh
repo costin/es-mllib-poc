@@ -14,13 +14,13 @@ wget -nc http://ai.stanford.edu/~amaas/data/sentiment/aclImdb_v1.tar.gz
 tar xvf aclImdb_v1.tar.gz
 
 # get the adult income prdiction dataset from http://archive.ics.uci.edu/ml/datasets/Adult
-mkdir adult_income
-cd adult_income
+cd ../knime/knime_workspace
+mkdir data
+cd data
 wget -nc http://archive.ics.uci.edu/ml/machine-learning-databases/adult/adult.data
-cd ..
+cd ../../..
 
 
-cd ..
 cd example-elasticsearch
 
 elasticsearchversion=2.2.1

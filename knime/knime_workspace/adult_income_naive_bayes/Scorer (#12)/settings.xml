@@ -67,8 +67,8 @@
 <entry key="memory_policy" type="xstring" value="CacheSmallInMemory"/>
 </config>
 <config key="model">
-<entry key="first" type="xstring" value="Prediction (class)"/>
-<entry key="second" type="xstring" value="class"/>
+<entry key="first" type="xstring" value="class"/>
+<entry key="second" type="xstring" value="Prediction (class)"/>
 <entry key="flowVarPrefix" type="xstring" isnull="true" value=""/>
 <entry key="sortingReversed" type="xboolean" value="false"/>
 <entry key="sortingStrategy" type="xint" value="0"/>
@@ -108,6 +108,6 @@
 </config>
 <config key="filestores">
 <entry key="file_store_location" type="xstring" isnull="true" value=""/>
-<entry key="file_store_id" type="xstring" value="919b1974-1181-4b02-81e5-7fe811d52f13"/>
+<entry key="file_store_id" type="xstring" value="66dfb919-8f92-42c1-bcb1-b53f91a252d1"/>
 </config>
 </config>
