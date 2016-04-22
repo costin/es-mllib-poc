@@ -10,3 +10,7 @@ libraries
 /.settings
 /.project
 /.classpath
+Example Workflow
+**.metadata
+**data/
+**.log
