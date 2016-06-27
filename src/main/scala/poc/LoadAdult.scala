@@ -22,7 +22,7 @@ object LoadAdult {
     } catch {
       case e: IndexNotFoundException => println("index sentiment140 does not exist")
     }
-    client.admin().indices().prepareCreate("adult").addMapping("_default_", "{\n    \"_default_\": {\n      \"dynamic_templates\": [\n        {\n          \"sting_analyzer\": {\n            \"match_mapping_type\": \"string\",\n            \"mapping\": {\n              \"type\": \"string\",\n              \"analyzer\": \"keyword\"\n            }\n          }\n        }\n      ]\n    }\n  }").get()
+    client.admin().indices().prepareCreate("adult").addMapping("_default_", "{\n    \"_default_\": {\n      \"dynamic_templates\": [\n        {\n          \"sting_analyzer\": {\n            \"match_mapping_type\": \"string\",\n            \"mapping\": {\n              \"type\": \"string\",\n              \"analyzer\": \"keyword\"\n            }\n          }\n        }\n      ],\n      \"properties\": {\n        \"age\": {\n          \"type\": \"double\"\n        },\n        \"capital_gain\": {\n          \"type\": \"double\"\n        },\n        \"capital_loss\": {\n          \"type\": \"double\"\n        },\n        \"education_num\": {\n          \"type\": \"double\"\n        },\n        \"fnlwgt\": {\n          \"type\": \"double\"\n        },\n        \"hours_per_week\": {\n          \"type\": \"double\"\n        }\n      }\n    } }").get()
     client.admin.cluster.health(Requests.clusterHealthRequest("sentiment140").waitForGreenStatus()).actionGet()
     client.close()
     val path = if (args.length == 1) args(0) else "./data/adult/adult.data"
